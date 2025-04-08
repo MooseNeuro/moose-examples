@@ -64,6 +64,8 @@ def main():
     runtime = 5000.0
     if ( len( sys.argv ) >= 2 ):
         solver = sys.argv[1]
+        if solver == 'gssa':
+            raise ValueError('The model does not really play nicely with the GSSA solver, since it involves some really tiny amounts of the MAPKKK.')
     modelId = moose.loadModel( mfile, 'model', solver )
     dt = moose.element( '/clock' ).tickDt[18]
     moose.reinit()

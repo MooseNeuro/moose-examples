@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Sat Aug 11 14:30:21 2012 (+0530)
 # Version:
-# Last-Updated: Sun Aug 12 15:45:38 2012 (+0530)
-#           By: subha
-#     Update #: 521
+# Last-Updated: Wed Jan 15 16:48:17 2025 (+0530)
+#           By: Subhasis Ray
+#     Update #: 528
 # URL:
 # Keywords:
 # Compatibility:
@@ -44,14 +44,12 @@
 
 # Code:
 
-import sys
-sys.path.append('../../python')
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 
 import moose
-from ionchannel import create_1comp_neuron
+from ionchannel import create_active_compartment
 
 def create_model():
     """
@@ -74,8 +72,8 @@ presynaptic neuron and neuron_B is the postsynaptic neuron.
 
     """
     model = moose.Neutral('/model')
-    nrn_a = create_1comp_neuron('/model/neuron_A')[0]
-    nrn_b = create_1comp_neuron('/model/neuron_B')[0]
+    nrn_a = create_active_compartment('/model/neuron_A')[0]
+    nrn_b = create_active_compartment('/model/neuron_B')[0]
     #: SynChan for post synaptic neuron
     synchan = moose.SynChan('/model/neuron_B/synchan')
     synchan.Gbar = 1e-8
@@ -85,8 +83,8 @@ presynaptic neuron and neuron_B is the postsynaptic neuron.
     #: Create SynHandler to handle spike event input and set the
     #: activation input of synchan
     synhandler = moose.SimpleSynHandler('/model/neuron_B/synhandler')
-    synhandler.synapse.num = 1
-    synhandler.synapse[0].delay = 5e-3
+    synhandler.numSynapses = 1
+    synhandler.synapse.delay = 5e-3
     moose.connect(synhandler, 'activationOut', synchan, 'activation')
     #: SpikeGen detects when presynaptic Vm crosses threshold and
     #: sends out a spike event

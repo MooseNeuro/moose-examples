@@ -1,29 +1,9 @@
-# randomspike.py --- 
+# randomspike.py ---
 #
 # Filename: randomspike.py
 # Author: Subhasis Ray
 # Maintainer:
 # Created: Tue Sep 30 10:58:09 2014 (+0530)
-# Version:
-# Last-Updated:
-#           By:
-#     Update #: 0
-# URL:
-# Keywords:
-# Compatibility:
-#
-#
-
-# Commentary:
-#
-#
-#
-#
-
-# Change log:
-#
-#
-#
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -43,17 +23,14 @@
 #
 
 # Code:
-
-import sys
-sys.path.append('../../python')
-import os
 import numpy as np
 import matplotlib.pyplot as plt
 
 import moose
-from ionchannel import create_1comp_neuron
+from ionchannel import create_active_compartment
 
 SIMTIME = 5.0
+
 
 def create_cell():
     """Create a single-compartment Hodgking-Huxley neuron with a
@@ -65,22 +42,20 @@ def create_cell():
     Returns a dict containing the neuron, the synchan and the
     synhandler for accessing the synapse,
     """
-    neuron = create_1comp_neuron('/neuron')
+    neuron = create_active_compartment('/neuron')
     #: SynChan for post synaptic neuron
     synchan = moose.SynChan('/neuron/synchan')
     synchan.Gbar = 1e-8
     synchan.tau1 = 2e-3
     synchan.tau2 = 2e-3
-    msg = moose.connect(neuron, 'channel', synchan, 'channel')
+    _ = moose.connect(neuron, 'channel', synchan, 'channel')
     #: Create SynHandler to handle spike event input and set the
     #: activation input of synchan
     synhandler = moose.SimpleSynHandler('/neuron/synhandler')
-    synhandler.synapse.num = 1
+    synhandler.numSynapses = 1
     synhandler.synapse[0].delay = 5e-3
     moose.connect(synhandler, 'activationOut', synchan, 'activation')
-    return {'neuron': neuron,
-            'synchan': synchan,
-            'synhandler': synhandler}
+    return {'neuron': neuron, 'synchan': synchan, 'synhandler': synhandler}
 
 
 def example():
@@ -108,29 +83,31 @@ def example():
     ectopic = moose.RandSpike('ectopic_input')
     ectopic.rate = 10.0
     cellmodel = create_cell()
-    moose.connect(ectopic, 'spikeOut',
-                  cellmodel['synhandler'].synapse[0], 'addSpike')
+    moose.connect(
+        ectopic, 'spikeOut', cellmodel['synhandler'].synapse[0], 'addSpike'
+    )
     tab_vm = moose.Table('/Vm')
     moose.connect(tab_vm, 'requestOut', cellmodel['neuron'], 'getVm')
     moose.reinit()
     moose.start(SIMTIME)
     return tab_vm
 
+
 def main():
+    """This is an example of simulating random events from a Poisson
+    process and applying the event as spike input to a
+    single-compartmental Hodgekin-Huxley type neuron model."""
 
-	"""This is an example of simulating random events from a Poisson
-	process and applying the event as spike input to a
-	single-compartmental Hodgekin-Huxley type neuron model."""
+    tab_vm = example()
+    ts = np.linspace(0, SIMTIME, len(tab_vm.vector))
+    plt.plot(ts, tab_vm.vector)
+    plt.ylabel('Vm (Volt)')
+    plt.xlabel('Time (s)')
+    plt.show()
 
-	tab_vm = example()
-	ts = np.linspace(0, SIMTIME, len(tab_vm.vector))
-	plt.plot(ts, tab_vm.vector)
-	plt.ylabel('Vm (Volt)')
-	plt.xlabel('Time (s)')
-	plt.show()
 
 if __name__ == '__main__':
-	main()
+    main()
 
 #
 # randomspike.py ends here

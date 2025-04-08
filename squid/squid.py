@@ -55,9 +55,9 @@ class IonChannel(object):
         vmax -- maximum voltage value for the alpha/beta lookup tables.
         """
         if gate == "X" and self.chan.Xpower > 0:
-            gate = moose.HHGate(self.path + "/gateX")
+            gate = moose.element(self.path + "/gateX")
         elif gate == "Y" and self.chan.Ypower > 0:
-            gate = moose.HHGate(self.path + "/gateY")
+            gate = moose.element(self.path + "/gateY")
         else:
             return False
         gate.setupAlpha(

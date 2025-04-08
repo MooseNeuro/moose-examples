@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Tue Aug  7 10:27:26 2012 (+0530)
 # Version:
-# Last-Updated: Tue Dec 29 12:40:48 2015 (-0500)
+# Last-Updated: Wed Jan 15 15:07:08 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 86
+#     Update #: 133
 # URL:
 # Keywords:
 # Compatibility:
@@ -54,17 +54,19 @@ and saved into a csv file.
 
 """
 
-import sys
 import numpy as np
+import matplotlib.pyplot as plt
+
 import moose
+
 # Create the somatic compartment
-model = moose.Neutral('/model') # This is a container for the model
+model = moose.Neutral('/model')  # This is a container for the model
 soma = moose.Compartment('/model/soma')
-soma.Em = -65e-3 # Leak potential
-soma.initVm = -65e-3 # Initial membrane potential
-soma.Rm = 5e9 # Total membrane resistance of the compartment
-soma.Cm = 1e-12 # Total membrane capacitance of the compartment
-soma.Ra = 1e6 # Total axial resistance of the compartment
+soma.Em = -65e-3  # Leak potential
+soma.initVm = -65e-3  # Initial membrane potential
+soma.Rm = 5e9  # Total membrane resistance of the compartment
+soma.Cm = 1e-12  # Total membrane capacitance of the compartment
+soma.Ra = 1e8  # Total axial resistance of the compartment
 # Create the axon
 axon = moose.Compartment('/model/axon')
 axon.Em = -65e-3
@@ -81,22 +83,37 @@ moose.connect(soma, 'raxial', axon, 'axial')
 
 # Setup data recording
 data = moose.Neutral('/data')
-axon_Vm = moose.Table('/data/axon_Vm')
-axon_Vm2 = moose.Table('/data/axon_Vm2')
+axon_Vm = moose.Table('/data/axon')
+soma_Vm = moose.Table('/data/soma')
 moose.connect(axon_Vm, 'requestOut', axon, 'getVm')
-moose.connect(axon_Vm2, 'requestOut', axon, 'getVm')
+moose.connect(soma_Vm, 'requestOut', soma, 'getVm')
 
-# Now schedule the sequence of operations and time resolutions
+# #######################################################################
+#                            SCHEDULING START
+# Explicitly scheduling the sequence of operations and time resolutions.
+# As moose now automates the scheduling, this is not necessary unless
+# you need fine control over scheduling
 moose.setClock(0, 0.025e-3)
 moose.setClock(1, 0.025e-3)
 moose.setClock(2, 0.25e-3)
-# useClock: First argument is clock no.
-# Second argument is a wildcard path matching all elements of type Compartment
-# Last argument is the processing function to be executed at each tick of clock 0
+
+# useClock(clockNo, path, method)
+# In this case:
+# clockNo: int
+#     clock no. (nonnegative integer) to use
+# path: str
+#     wildcard path matching all elements of type Compartment
+#     or explicit path of the tables
+# method: str
+#     the processing function to be executed at each tick of clock
+
 moose.useClock(0, '/model/#[TYPE=Compartment]', 'init')
 moose.useClock(1, '/model/#[TYPE=Compartment]', 'process')
 moose.useClock(2, axon_Vm.path, 'process')
-moose.useClock(2, axon_Vm2.path, 'process')
+moose.useClock(2, soma_Vm.path, 'process')
+#                            SCHEDULING END
+# #######################################################################
+
 # Now initialize everything and get set
 moose.reinit()
 
@@ -118,12 +135,31 @@ moose.start(100e-3)
 soma.inject = 0.0
 # Run for 500 ms
 moose.start(500e-3)
-clock = moose.Clock('/clock') # Get a handle to the global clock
-time = np.linspace(0, clock.currentTime, len(axon_Vm.vector))
-data = np.vstack((time, axon_Vm.vector, axon_Vm2.vector))
 
-np.savetxt('compartmental_neuron.csv', data.T, delimiter=',', header='time,Vm1,Vm2')
+
+## This is old style of creating time points
+# clock = moose.Clock('/clock')  # Get a handle to the global clock
+# time = np.linspace(0, clock.currentTime, len(axon_Vm.vector))
+
+## You can create the time points using the dt of the clock tick
+## associated with a table
+time = np.arange(len(axon_Vm.vector)) * axon_Vm.dt
+data = np.vstack((time, axon_Vm.vector, soma_Vm.vector))
+
+np.savetxt(
+    'compartmental_neuron.csv', data.T, delimiter=',', header='time,axonVm,somaVm'
+)
 print('Saved data in compartmental_neuron.csv')
+
+###########################################################
+# Plot the membrane voltages
+###########################################################
+plt.plot(time * 1e3, soma_Vm.vector * 1e3, label=soma_Vm.name)
+plt.plot(time * 1e3, axon_Vm.vector * 1e3, '--', label=axon_Vm.name)
+plt.ylabel('Membrane potential (mV)')
+plt.xlabel('Time (ms)')
+plt.legend()
+plt.show()
 
 #
 # compartmental_neuron.py ends here
