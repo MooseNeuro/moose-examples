@@ -63,3 +63,5 @@ target/
 CMakeFiles*
 _tests*
 _travis
+
+*.dat
