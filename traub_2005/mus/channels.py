@@ -478,7 +478,7 @@ def get_proto(name, parent='/library'):
     return None
 
 
-def get_channel(name, spec=channel_spec, parent='/library'):
+def get_channel(name, spec, parent='/library'):
     """Returns a prototype HH channel with name `name` under `parent`,
     creating it if it does not exits
 
@@ -491,8 +491,7 @@ def get_channel(name, spec=channel_spec, parent='/library'):
     parent: str
         Path of the parent element of the channel object
     """
-    chan_spec = spec.get(name)
-    if not chan_spec:
+    if not spec:
         raise ValueError(f'Unknown channel: {name}')
     chan = get_proto(name, parent)
     if chan:
@@ -502,16 +501,16 @@ def get_channel(name, spec=channel_spec, parent='/library'):
     chan = moose.HHChannel(path)
     # Populate the gate attributes if corresponding power is positive
     for key, attr in {'X': 'Xpower', 'Y': 'Ypower', 'Z': 'Zpower'}.items():
-        power = chan_spec.get(attr, 0)
+        power = spec.get(attr, 0)
         if power <= 0:
             continue
         setattr(chan, attr, power)
-        setattr(chan, key, chan_spec.get(key, 0.0))
+        setattr(chan, key, spec.get(key, 0.0))
         print(f'Set {path}.{key} = {getattr(chan, key)}')
         gate_name = f'gate{key}'
         gate = moose.element(f'{path}/{gate_name}')
         print('#' * 10, gate)
-        gate_spec = chan_spec.get(gate_name)
+        gate_spec = spec.get(gate_name)
         for gate_attr, val in gate_spec.items():
             print(f'Setting {gate.path}.{gate_attr} = {val}')
             setattr(gate, gate_attr, val)
@@ -527,28 +526,43 @@ def get_channel(name, spec=channel_spec, parent='/library'):
             gate.max = VMAX
             gate.divs = VDIVS
         gate.fillFromExpr()
-    chan.Ek = chan_spec.get('Ek')
-    mstring = chan_spec.get('Mstring')
+    chan.Ek = spec.get('Ek')
+    mstring = spec.get('Mstring')
     if mstring:
         ms = moose.Mstring(f'{chan.path}/{mstring[0]}')
         ms.value = mstring[1]
     return chan
 
 
-def init_channels():
+def get_capool(parent='/library'):
+    name = 'CaPool'
+    capool = get_proto(name, parent)
+    if capool is None:
+        path = f'{parent}/{name}'
+        capool = moose.CaConc(path)
+        capool.CaBasal = 0.0
+        capool.ceiling = 1e6
+        capool.floor = 0.0
+    return capool
+        
+
+def init_channels(libpath='/library'):
     channels = {}
     print('Start initializing channels')
     ts = time.perf_counter()
     for name, spec in channel_spec.items():
         try:
             print('   ... Creating prototype for', name)
-            channels[name] = get_channel(name)
+            channels[name] = get_channel(name, spec, parent=libpath)
             print('OK ... Created prototype for', name)
         except Exception:
             print('EE .. Could not create prototype for', name)
             raise
+        channels['CaPool'] = get_capool(parent=libpath)
+        channels['spike'] = moose.SpikeGen(f'{libpath}/spike')
     te = time.perf_counter()
     print(f'Finished initializing channels in {te - ts} seconds.')
+    return channels
 
 
 #
