@@ -544,7 +544,7 @@ def get_capool(parent='/library'):
         capool.ceiling = 1e6
         capool.floor = 0.0
     return capool
-        
+
 
 def init_channels(libpath='/library'):
     channels = {}
