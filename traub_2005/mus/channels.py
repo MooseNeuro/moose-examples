@@ -10,7 +10,7 @@
 """Channels for Traub 2005 model"""
 import time
 import moose
-
+from config import logger
 
 # Voltage range for HH gate interpolation tables
 VMIN = -100e-3
@@ -506,15 +506,14 @@ def get_channel(name, spec, parent='/library'):
             continue
         setattr(chan, attr, power)
         setattr(chan, key, spec.get(key, 0.0))
-        print(f'Set {path}.{key} = {getattr(chan, key)}')
+        logger.debug(f'Set {path}.{key} = {getattr(chan, key)}')
         gate_name = f'gate{key}'
         gate = moose.element(f'{path}/{gate_name}')
-        print('#' * 10, gate)
         gate_spec = spec.get(gate_name)
         for gate_attr, val in gate_spec.items():
-            print(f'Setting {gate.path}.{gate_attr} = {val}')
+            logger.debug(f'Setting {gate.path}.{gate_attr} = {val}')
             setattr(gate, gate_attr, val)
-            print(
+            logger.debug(
                 f'OK Set {gate.path}.{gate_attr} = {getattr(gate, gate_attr)}'
             )
         if key == 'Z':
@@ -548,20 +547,25 @@ def get_capool(parent='/library'):
 
 def init_channels(libpath='/library'):
     channels = {}
-    print('Start initializing channels')
+    logger.debug('Start initializing channels')
     ts = time.perf_counter()
     for name, spec in channel_spec.items():
+        if moose.exists(f'{libpath}/{name}'):
+            channels[name] = moose.element(f'{libpath}/{name}')
+            continue
+
         try:
-            print('   ... Creating prototype for', name)
+            logger.debug(f'   ... Creating prototype for {name}')
             channels[name] = get_channel(name, spec, parent=libpath)
-            print('OK ... Created prototype for', name)
+            logger.debug(f'OK ... Created prototype for {name}')
         except Exception:
-            print('EE .. Could not create prototype for', name)
+            logger.error(f'EE .. Could not create prototype for {name}')
             raise
-        channels['CaPool'] = get_capool(parent=libpath)
-        channels['spike'] = moose.SpikeGen(f'{libpath}/spike')
+
+    channels['CaPool'] = get_capool(parent=libpath)
+    channels['spike'] = moose.SpikeGen(f'{libpath}/spike')
     te = time.perf_counter()
-    print(f'Finished initializing channels in {te - ts} seconds.')
+    logger.debug(f'Finished initializing channels in {te - ts} seconds.')
     return channels
 
 

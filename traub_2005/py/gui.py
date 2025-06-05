@@ -6,9 +6,9 @@
 # Maintainer: 
 # Created: Fri Jul 12 11:53:50 2013 (+0530)
 # Version: 
-# Last-Updated: Tue May 30 16:38:54 2023 (+0530)
+# Last-Updated: Tue May 13 12:15:52 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 814
+#     Update #: 820
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -325,19 +325,24 @@ class CellView(QtWidgets.QWidget):
         self.getCellMorphologyWidget().displayGraph(graph)
 
     def createCell(self, name):
+        if moose.exists('/model'):
+            moose.delete('/model')
+        if moose.exists('/data'):
+            moose.delete('/data')
         model_container = moose.Neutral('/model')
         data_container = moose.Neutral('/data')        
         # moose.le(model_container)
         # moose.le(data_container)
-        for ch in model_container.children:            
-            moose.delete(ch)
-        for ch in data_container.children:
-            moose.delete(ch)
-        params = setup_current_step_model(model_container,
-                                          data_container,
+        # for ch in model_container.children:            
+        #     moose.delete(ch)
+        # for ch in data_container.children:
+        #     moose.delete(ch)
+        params = setup_current_step_model(model_container.path,
+                                          data_container.path,
                                           name,
-                                          [[0, 0, 0],
-                                           [1e9, 0, 0]])
+                                          [{'delay': 0, 'width': 0, 'level': 0},
+                                           {'delay': 1e9, 'width': 0, 'level': 0}])
+        params['cell'].dump_cell(f'{name}.csv')
         # moose.le(model_container)
         # moose.le(data_container)
         print('11111')

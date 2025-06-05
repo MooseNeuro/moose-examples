@@ -6,9 +6,9 @@
 # Maintainer: 
 # Created: Sat May 26 10:41:37 2012 (+0530)
 # Version: 
-# Last-Updated: Tue May 30 16:30:46 2023 (+0530)
+# Last-Updated: Tue May 13 16:21:35 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 422
+#     Update #: 423
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -316,8 +316,8 @@ def compare_cell_dump(left, right, rtol=1e-3, atol=1e-8, row_header=True, col_he
     NEURON and MOOSE."""
     print( 'Comparing:', left, 'with', right)
     ret = True
-    left_file = open(left, 'rb')
-    right_file = open(right, 'rb')
+    left_file = open(left, 'r')
+    right_file = open(right, 'r')
     left_reader = csv.DictReader(left_file, delimiter=',')
     right_reader = csv.DictReader(right_file, delimiter=',')
     lheader = list(left_reader.fieldnames)

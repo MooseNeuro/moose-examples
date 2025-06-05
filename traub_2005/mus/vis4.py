@@ -22,10 +22,11 @@ import matplotlib.pyplot as plt
 
 glyph_meshes = {
     'sphere': pv.Sphere(radius=10),
-    'cone': pv.Cone(direction=(0, 0, 1), height=25, radius=10, resolution=20),
+    'cone': pv.Cone(direction=(0, 0, 1), height=25, radius=15, resolution=20),
     'cylinder': pv.Cylinder(
         direction=(0, 0, 1), height=20, radius=10, resolution=20
     ),
+    'octahedron': pv.Octahedron(radius=20),
 }
 
 #: Visualization spec. For each celltype a tuple:
@@ -37,7 +38,7 @@ cell_vis_spec = {
         # 'dia': 490,
         'dia': 700,
         'glyph': 'cone',
-        'cmap': 'Purples',
+        'cmap': 'autumn',
     },
     'SupPyrFRB': {
         'top': 100,
@@ -45,7 +46,7 @@ cell_vis_spec = {
         # 'dia': 490,
         'dia': 700,
         'glyph': 'cone',
-        'cmap': 'Reds',
+        'cmap': 'spring',
     },
     'SupLTS': {
         'top': 100,
@@ -53,14 +54,14 @@ cell_vis_spec = {
         # 'dia': 490,
         'dia': 700,
         'glyph': 'sphere',
-        'cmap': 'Blues',
+        'cmap': 'hsv',
     },
     'SupAxoaxonic': {
         'top': 100,
         'bottom': 900,
         'dia': 490,
         'glyph': 'sphere',
-        'cmap': 'Greens',
+        'cmap': 'Wistia',
     },
     'SupBasket': {
         'top': 100,
@@ -68,15 +69,15 @@ cell_vis_spec = {
         # 'dia': 490,
         'dia': 700,
         'glyph': 'sphere',
-        'cmap': 'PuBuGn',
+        'cmap': 'winter',
     },
     'SpinyStellate': {
         'top': 1000,
         'bottom': 1600,
         # 'dia': 650,
         'dia': 900,
-        'glyph': 'sphere',
-        'cmap': 'Reds',
+        'glyph': 'octahedron',
+        'cmap': 'autumn',
     },
     'TuftedIB': {
         'top': 1700,
@@ -84,7 +85,7 @@ cell_vis_spec = {
         # 'dia': 550,
         'dia': 800,
         'glyph': 'cylinder',
-        'cmap': 'YlOrBr',
+        'cmap': 'Wistia',
     },
     'TuftedRS': {
         'top': 1700,
@@ -92,7 +93,7 @@ cell_vis_spec = {
         # 'dia': 550,
         'dia': 800,
         'glyph': 'cylinder',
-        'cmap': 'PuRd',
+        'cmap': 'spring',
     },
     'NontuftedRS': {
         'top': 2100,
@@ -100,14 +101,14 @@ cell_vis_spec = {
         # 'dia': 200,
         'dia': 500,
         'glyph': 'sphere',
-        'cmap': 'Purples',
+        'cmap': 'autumn',
     },
     'DeepBasket': {
         'top': 2100,
         'bottom': 2500,
         'dia': 200,
         'glyph': 'sphere',
-        'cmap': 'PuBuGn',
+        'cmap': 'Wistia',
     },
     'DeepAxoaxonic': {
         'top': 2100,
@@ -115,7 +116,7 @@ cell_vis_spec = {
         # 'dia': 200,
         'dia': 500,
         'glyph': 'sphere',
-        'cmap': 'Greens',
+        'cmap': 'summer',
     },
     'DeepLTS': {
         'top': 2100,
@@ -123,15 +124,15 @@ cell_vis_spec = {
         # 'dia': 200,
         'dia': 500,
         'glyph': 'sphere',
-        'cmap': 'Blues',
+        'cmap': 'spring',
     },
     'TCR': {
         'top': 2800,
         'bottom': 3200,
         # 'dia': 200,
         'dia': 500,
-        'glyph': 'sphere',
-        'cmap': 'Reds',
+        'glyph': 'cylinder',
+        'cmap': 'autumn',
     },
     'nRT': {
         'top': 2800,
@@ -139,7 +140,7 @@ cell_vis_spec = {
         # 'dia': 200,
         'dia': 500,
         'glyph': 'sphere',
-        'cmap': 'Blues',
+        'cmap': 'winter',
     },
 }
 
@@ -204,7 +205,9 @@ def display_network(
     plotter.show()
 
 
-def display_data(datafile, celltype_attr=cell_vis_spec, vmin=-100e-3, vmax=0):
+def display_data(
+    datafile, celltype_attr=cell_vis_spec, vmin=-70e-3, vmax=10e-3
+):
     data = adapter.get_data(datafile, field='Vm')
     t, datadict = next(data)
     graph = ig.Graph(directed=True)
@@ -241,9 +244,8 @@ def display_data(datafile, celltype_attr=cell_vis_spec, vmin=-100e-3, vmax=0):
         glyphs.set_active_scalars('Vm')
         glyph_dict[celltype] = glyphs
         actor = plotter.add_mesh(
-            glyphs, cmap=vinfo['cmap'], opacity='linear', show_scalar_bar=False
+            glyphs, cmap=vinfo['cmap'], show_scalar_bar=False
         )
-        # actor = plotter.add_mesh(glyphs, scalars='Vm', opacity='linear', use_transparency=True, cmap=vinfo['cmap'])
         actor.mapper.scalar_visibility = True
         actor.mapper.scalar_range = (-100e-3, 0)
         glyph_actors[celltype] = actor
@@ -296,8 +298,8 @@ def display_data(datafile, celltype_attr=cell_vis_spec, vmin=-100e-3, vmax=0):
             actor.rotate_z(0.5)
             vm0 = np.array(celltype_data[celltype][0]) * vm_plot_scale
             cmap = celltype_attr[celltype]['cmap']
-            print(celltype, 'Colormap', cmap)
-            color = plt.get_cmap(cmap)(1.0)
+            # print(celltype, 'Colormap', cmap)
+            color = plt.get_cmap(cmap)(0.0)
             for chart in charts:
                 _ = chart.line(
                     np.arange(len(vm0)) * 1e-3, vm0 + ii, color=color
@@ -311,10 +313,15 @@ def display_data(datafile, celltype_attr=cell_vis_spec, vmin=-100e-3, vmax=0):
 
 
 def display_spike_data(
-        datafile, celltype_attr=cell_vis_spec, vmin=-100e-3, vmax=0, cell_mult=1, moviefile=None
+    datafile,
+    celltype_attr=cell_vis_spec,
+    vmin=-100e-3,
+    vmax=0,
+    cell_mult=1,
+    moviefile=None,
 ):
     """cell_mult: make these many copy of each cell to make visual appealing. This is unscientific and merely for creating media."""
-    datadict = adapter.get_spike_vm(datafile, amp=100e-3, baseline=-70e-3)
+    datadict = adapter.get_spike_vm(datafile, amp=1000e-3, baseline=-65e-3)
     graph = ig.Graph(directed=True)
     cell_counts = defaultdict(int)
     cell_clones = {}
@@ -360,11 +367,16 @@ def display_spike_data(
         glyphs.set_active_scalars('Vm')
         glyph_dict[celltype] = glyphs
         actor = plotter.add_mesh(
-            glyphs, cmap=vinfo['cmap'], opacity='linear', show_scalar_bar=False
+            glyphs,
+            cmap=vinfo['cmap'],
+            clim=(0, 1),
+            opacity=0.7,
+            show_scalar_bar=False,
+            # flip_scalars=True,
         )
         # actor = plotter.add_mesh(glyphs, scalars='Vm', opacity='linear', use_transparency=True, cmap=vinfo['cmap'])
         actor.mapper.scalar_visibility = True
-        actor.mapper.scalar_range = (-100e-3, 0)
+        # actor.mapper.scalar_range = (-100e-3, 0)
         glyph_actors[celltype] = actor
     plotter.set_background('black')
     plotter.camera.position = (0.0, 400.0, -1600.0)
@@ -376,7 +388,7 @@ def display_spike_data(
     celltype_data = defaultdict(dict)
     for cell_name, vm in datadict.items():
         celltype = cell_name.partition('_')[0]
-        celltype_data[celltype][cell_name] = vm
+        celltype_data[celltype][cell_name] = (vm - vmin) / (vmax - vmin)
     charts = []
     for plot_no in (0, 2):
         plotter.subplot(0, plot_no)
@@ -397,7 +409,7 @@ def display_spike_data(
     def update(step):
         for chart in charts:
             chart.clear()
-        vm_plot_scale = 7
+        vm_plot_scale = 1
         for ii, (celltype, vmdict) in enumerate(celltype_data.items()):
             glyph = glyph_meshes[celltype_attr[celltype]['glyph']]
             vm_instant = [
@@ -406,13 +418,15 @@ def display_spike_data(
             glyph_dict[celltype]['Vm'] = np.array(vm_instant).repeat(
                 glyph.n_cells
             )
+            cmap = plt.get_cmap(celltype_attr[celltype]['cmap'])
+            # print(celltype, vm_instant[0], cmap(vm_instant[0]))
             actor = glyph_actors[celltype]
             actor.rotate_z(0.5)
             key0 = list(vmdict.keys())[0]
             vm0 = np.array(vmdict[key0][:step]) * vm_plot_scale
             cmap = celltype_attr[celltype]['cmap']
             # print(celltype, 'Colormap', cmap)
-            color = plt.get_cmap(cmap)(1.0)
+            color = plt.get_cmap(cmap)(0)
             for chart in charts:
                 _ = chart.line(
                     np.arange(len(vm0)) * 1e-3, vm0 + ii, color=color
@@ -426,6 +440,7 @@ def display_spike_data(
     # plotter.show()
     plotter.show(auto_close=False)
     plotter.close()
+
 
 if __name__ == '__main__':
     fpath = '../../../traub_2005_full/dataviz/test_data/data_20111025_115951_4849.h5'

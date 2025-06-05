@@ -12,8 +12,30 @@ import time
 import numpy as np
 import moose
 import cells
+from config import logger
 
 
+#: number of cells of each type in original model
+orig_cell_counts = {
+    'SupPyrRS': 1000,
+    'SupPyrFRB': 50,
+    'SupBasket': 90,
+    'SupAxoaxonic': 90,
+    'SupLTS': 90,
+    'SpinyStellate': 240,
+    'TuftedIB': 800,
+    'TuftedRS': 200,
+    'DeepBasket': 100,
+    'DeepAxoaxonic': 100,
+    'DeepLTS': 100,
+    'NontuftedRS': 500,
+    'TCR': 100,
+    'nRT': 100,
+}
+
+
+#: number of cells of each type
+#: modify this to reduce model size
 cell_counts = {
     'SupPyrRS': 1000,
     'SupPyrFRB': 50,
@@ -30,7 +52,17 @@ cell_counts = {
     'TCR': 100,
     'nRT': 100,
 }
+
 # fmt: off
+#: The connection spec is
+#: presynaptic_celltype: {
+#:    postsynpatic_celltype: {
+#:        'npre': number of presynaptic cells per postsynpatic neuron,
+#:        'comps': allowed compartments on the postsynaptic neuron,
+#:    }
+#: }
+#:
+
 connection_spec = {
     # Keys are presynaptic cell type
     'SupPyrRS': {
@@ -926,6 +958,9 @@ connection_spec = {
 # fmt: on
 
 
+rng = np.random.default_rng()
+
+
 def create_neuron_populations(cell_counts, model_root='/model', scale=0.1):
     """Create cel populations using counts in `popspec` dict.
     Scale the population sizes by `scale`"""
@@ -940,13 +975,13 @@ def create_neuron_populations(cell_counts, model_root='/model', scale=0.1):
             moose.copy(proto, model_root, f'{name}_{ii:03d}')
             for ii in range(int(scale * count))
         ]
-        print(f'{name}: Created {count} copies')
+        logger.info(f'{name}: Created {count} copies')
     tend = time.perf_counter()
-    print(f'Finished creating neuron populations in {tend - tstart} s')
+    logger.info(f'Finished creating neuron populations in {tend - tstart} s')
     return populations
 
 
-def connect_populations(connspec, population_dict, scale=0.1):
+def connect_populations(connspec, population_dict, rng=rng):
     """Connect the neuronal populations using connection specification
     in `connspec`.  `population_dict` maps celltype name to the list
     of cells of theis type
@@ -961,14 +996,16 @@ def connect_populations(connspec, population_dict, scale=0.1):
             ) or (
                 conn_info['npre'] > 0 and len(conn_info['comps']) > 0
             ), f'0 target comp or precell for {pre_type}->{post_type}'
+            conn_prob = float(conn_info['npre'])/orig_cell_counts[pre_type]
+            npre = int(len(population_dict[pre_type]) * conn_prob)
             for cell in population_dict[post_type]:
-                idx = np.random.choice(
-                    len(population_dict[pre_type]),
-                    size=int(conn_info['npre'] * scale),
+                idx = rng.choice(
+                    range(len(population_dict[pre_type])),
+                    size=int(npre)
                 )
                 pre_list = [population_dict[pre_type][ii] for ii in idx]
-                comp_list = np.random.choice(
-                    conn_info['comps'], size=conn_info['npre']
+                comp_list = rng.choice(
+                    conn_info['comps'], size=npre
                 )
                 for pre_cell, comp_name in zip(pre_list, comp_list):
                     post_comp = moose.element(f'{cell.path}/comp_{comp_name}')
@@ -977,6 +1014,9 @@ def connect_populations(connspec, population_dict, scale=0.1):
                     )
                     assert len(spikegen) == 1
                     spikegen = spikegen[0]
+                    # Here I am creating an independent synachan for each presynaptic neuron.
+                    # Could be a single synchan for one presynaptic population.
+                    # TODO: Compare results and performance.
                     synchan_path = f'{post_comp.path}/syn_{pre_cell.name}'
                     try:
                         synhandler = moose.element(f'{synchan_path}/synh')
@@ -990,6 +1030,10 @@ def connect_populations(connspec, population_dict, scale=0.1):
                         moose.connect(
                             synhandler, 'activationOut', synchan, 'activation'
                         )
+                    # numSynapses must be incremented first to
+                    # allocate synapse. We could also set the
+                    # numSynapses right away at creation of the
+                    # synhandler
                     synhandler.numSynapses += 1
                     moose.connect(
                         spikegen,
@@ -999,10 +1043,10 @@ def connect_populations(connspec, population_dict, scale=0.1):
                     )
             tend = time.perf_counter()
             ttot += tend - tstart
-            print(
+            logger.debug(
                 f'Connected {pre_type} population {post_type} in {tend - tstart} s'
             )
-    print('Total time to setup connections', ttot, 's')
+    logger.debug('Total time to setup connections', ttot, 's')
 
 
 def make_net(cell_counts, connection_spec, model_root='/model'):

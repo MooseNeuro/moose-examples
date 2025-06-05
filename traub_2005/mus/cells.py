@@ -14,6 +14,8 @@ import numpy as np
 import pandas as pd
 import time
 import moose
+from config import logger
+
 
 from channels import get_proto, init_channels
 
@@ -41,7 +43,7 @@ cell_spec = {
             'GABA': -75e-3,  # Sanchez-Vives et al. 1997
         },
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        #              X_AR = 0.25
+        'X_AR': 0.25,
     },
     'DeepLTS': {
         'proto': 'DeepLTS.p',
@@ -54,7 +56,7 @@ cell_spec = {
             'GABA': -75e-3,  # Sanchez-Vives et al. 1997
         },
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        # X_AR = 0.25
+        'X_AR': 0.25,
     },
     'NontuftedRS': {
         'proto': 'NontuftedRS.p',
@@ -68,7 +70,7 @@ cell_spec = {
             'GABA': -75e-3,  # Sanchez-Vives et al. 1997
         },
         'tauCa': {'all': 20e-3, 'comp_1': 100e-3},
-        # X_AR = 0.25
+        'X_AR': 0.25,
     },
     'nRT': {
         'proto': 'nRT.p',
@@ -84,7 +86,7 @@ cell_spec = {
             'all': 1e-3 / 0.075,
             'comp_1': 100e-3,
         },
-        # X_AR = 0.25
+        'X_AR': 0.25,
     },
     'SpinyStellate': {
         'proto': 'SpinyStellate.p',
@@ -96,8 +98,9 @@ cell_spec = {
             'Ca': 125e-3,
             'GABA': -75e-3,
         },
+        'X_AR': 0.0,
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        # X_AR = 0.0
+        'X_AR': 0.0,
     },
     'SupAxoaxonic': {
         'proto': 'SupAxoaxonic.p',
@@ -110,7 +113,7 @@ cell_spec = {
             'GABA': -75e-3,
         },
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        # X_AR = 0.0
+        'X_AR': 0.0,
     },
     'SupBasket': {
         'proto': 'SupBasket.p',
@@ -123,7 +126,7 @@ cell_spec = {
             'GABA': -75e-3,  # Sanchez-Vives et al. 1997
         },
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        # X_AR = 0.0
+        'X_AR': 0.0,
     },
     'SupLTS': {
         'proto': 'SupLTS.p',
@@ -136,7 +139,7 @@ cell_spec = {
             'GABA': -75e-3,  # Sanchez-Vives et al. 1997
         },
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        # X_AR = 0.25
+        'X_AR': 0.25,
     },
     'SupPyrFRB': {
         'proto': 'SupPyrFRB.p',
@@ -174,7 +177,7 @@ cell_spec = {
             'GABA': -81e-3,
         },
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        # X_AR = 0.25
+        'X_AR': 0.25,
     },
     'TuftedIB': {
         'proto': 'TuftedIB.p',
@@ -193,7 +196,7 @@ cell_spec = {
             'comp_5': 1e-3 / 0.02,
             'comp_6': 1e-3 / 0.02,
         },
-        # X_AR = 0.25
+        'X_AR': 0.25,
     },
     'TuftedRS': {
         'proto': 'TuftedRS.p',
@@ -212,7 +215,7 @@ cell_spec = {
             'comp_5': 1e-3 / 0.02,
             'comp_6': 1e-3 / 0.02,
         },
-        # X_AR = 0.25
+        'X_AR': 0.25,
     },
 }
 
@@ -257,15 +260,26 @@ def update_tau_ca(proto, cell_spec):
     """Update tau for Ca pool from cell spec"""
     tau_dict = cell_spec['tauCa']
     tau_all = tau_dict.pop('all')
-    for ca_pool in moose.wildcardFind(f'{proto.path}/##/[ISA=CaConc]'):
+    for ca_pool in moose.wildcardFind(f'{proto.path}/##[ISA=CaConc]'):
         ca_pool.tau = tau_all
+        print(proto.name, 'Set tau Ca for all comp to', ca_pool.tau)
     for comp, tau in tau_dict.items():
         ca_pool = moose.element(f'{proto.path}/{comp}/CaPool')
         ca_pool.tau = tau
-
+        print(f'{proto.name}: Set tau Ca for {comp} to {ca_pool.tau}')
+    
     # to keep the cell_spec unaltered, put back the popped entry
     tau_dict['all'] = tau_all
 
+
+def update_ar(cell, cell_spec):
+    """Initial value of gating parameter is force-set for AR (as
+    opposed to lookup value according to the voltage)"""
+    if 'X_AR' in cell_spec:
+        ar_chans = moose.wildcardFind(f'{cell.path}/##[FIELD(name)=AR]')
+        for ch in ar_chans:
+            ch.X = cell_spec['X_AR']
+    
 
 def get_cell(name, spec, parent='/library', protodir='proto'):
     """Returns a prototype cell with name `name` under `parent`,
@@ -291,7 +305,7 @@ def init_cells():
     for name, spec in cell_spec.items():
         cells[name] = get_cell(name, spec=spec)
     tend = time.perf_counter()
-    print(f'Created {len(cells)} prototype neurons in {tend - tstart} s')
+    logger.debug(f'Created {len(cells)} prototype neurons in {tend - tstart} s')
     return cells
 
 

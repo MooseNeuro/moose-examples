@@ -65,3 +65,6 @@ _tests*
 _travis
 
 *.dat
+*.bak
+*~
+*.h5

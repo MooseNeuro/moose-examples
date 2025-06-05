@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Fri Mar  9 23:17:17 2012 (+0530)
 # Version:
-# Last-Updated: Thu Apr 10 13:45:01 2025 (+0530)
+# Last-Updated: Tue May 13 16:24:49 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 714
+#     Update #: 740
 # URL:
 # Keywords:
 # Compatibility:
@@ -142,16 +142,21 @@ def read_prototype(celltype, cdict):
     # set the compartment postions to origin. This will avoid
     # incorrect assignemnt of position when the x/y/z values in
     # prototype file is just to for setting the compartment length.
-    if not config.modelSettings.morph_has_postion:
-        for comp in moose.wildcardFind(
-            '%s/#[TYPE=Compartment]' % (proto.path)
-        ):
-            comp.x = 0.0
-            comp.y = 0.0
-            comp.z = 0.0
+    moose.showfield(f'{proto.path}/comp_1')
+    ## Now MOOSE updates the length of compartment when
+    ## coordinates are modified, breaking the code below
+    ## - Subha, Tue May 13 15:31:32 IST 2025
+    # if not config.modelSettings.morph_has_postion:
+    #     for comp in moose.wildcardFind(
+    #         '%s/#[TYPE=Compartment]' % (proto.path)
+    #     ):
+    #         comp.x = 0.0
+    #         comp.y = 0.0
+    #         comp.z = 0.0
     leveldict = read_keyvals(
         f'{config.modelSettings.protodir}/{celltype}.levels'
     )
+    moose.showfield(f'{proto.path}/comp_1')
     depths = read_keyvals(f'{config.modelSettings.protodir}/{celltype}.depths')
     depthdict = {}
     for level, depthset in list(depths.items()):
@@ -196,6 +201,7 @@ class CellMeta(moose.melement.__class__):
     def __new__(cls, name, bases, cdict):
         if name != 'CellBase':
             proto = read_prototype(name, cdict)
+            moose.showfield(f'{proto.path}/comp_1')
             annotation = None
             if 'annotation' in cdict:
                 annotation = cdict['annotation']
@@ -228,13 +234,13 @@ class CellBase(object):
             moose.copy(self.prototype, path_tokens[0], path_tokens[-1])
 
         self.name = path.split('/')[-1]
-        self.solver = moose.HSolve('{}/solver'.format(path))
-        self.solver.target = path
-        self.solver.dt = config.simulationSettings.simulationDt
+        # self.solver = moose.HSolve('{}/solver'.format(path))
+        # self.solver.target = path
+        # self.solver.dt = config.simulationSettings.simulationDt
 
     def comp(self, number):
         assert self.path.strip()
-        path = '%scomp_%d' % (self.path, number)
+        path = '%s/comp_%d' % (self.path, number)
         return (
             moose.element(path)
             if moose.exists(path)
@@ -279,7 +285,7 @@ class CellBase(object):
             writer.writeheader()
             comps = moose.wildcardFind('%s/##[TYPE=Compartment]' % (self.path))
             comps = sorted(
-                comps, key=lambda x: int(x.name[0].rpartition('_')[-1])
+                comps, key=lambda x: int(x.name.rpartition('_')[-1])
             )
             for comp_e in comps:
                 comp = moose.element(comp_e)
@@ -316,6 +322,9 @@ class CellBase(object):
                         else:
                             row['tau_cad'] = 0.0
                             row['beta_cad'] = 0.0
+                for key, value in row.items():
+                    if isinstance(value, float):
+                        row[key] = f'{value:.4g}'
                 writer.writerow(row)
 
 

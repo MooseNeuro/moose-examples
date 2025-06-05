@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Mon Oct 15 15:03:09 2012 (+0530)
 # Version:
-# Last-Updated: Thu Apr 10 13:34:08 2025 (+0530)
+# Last-Updated: Tue May 13 16:31:06 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 428
+#     Update #: 433
 # URL:
 # Keywords:
 # Compatibility:
@@ -177,7 +177,7 @@ class SingleCellCurrentStepTest(unittest.TestCase):
         # large to avoid a second pulse within realistic simulation
         # runtime
         self.pulse_list = [
-            {'delay': 100e-3, 'width': 100e-3, 'level': 1e-9},
+            {'delay': 100e-3, 'width': 400e-3, 'level': 1e-9},
             {'delay': 1e9, 'width': 0, 'level': 0},
         ]
         self.solver = config.simulationSettings.method
@@ -199,6 +199,7 @@ class SingleCellCurrentStepTest(unittest.TestCase):
             self.pulse_list,
         )
         self.cell = params['cell']
+        self.cell.dump_cell(f'{self.cell.name}.csv')
         for ch in moose.wildcardFind(
             self.cell.soma.path + '/##[ISA=ChanBase]'
         ):
