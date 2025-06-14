@@ -1,13 +1,11 @@
-[![Build Status](https://travis-ci.org/BhallaLab/moose-examples.svg?branch=master)](https://travis-ci.org/BhallaLab/moose-examples).
+# Examples, tutorials, and demo scripts for MOOSE
 
-Examples, tutorial and demo scripts.
+These are example scripts for model setup and simulation with MOOSE.
 
 # How to run
 
-First install `pymoose` from PyPI using `pip`.
+These examples need MOOSE to be installed: https://github.com/MooseNeuro/moose-core
 
-     $ pip install pymoose --pre --user # get the latest version
-    
 Make sure that you have `matplotlib`, and `scipy` (optional) installed as well.
 
-Some scripts might require `PyQt4` or `PyQt5` as well.
+Some scripts like the `squid demo` and `Izhikevich models demo` require `PyQt` for graphical interface.
