@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Tue Sep  9 17:59:50 2014 (+0530)
 # Version:
-# Last-Updated: Sun Dec 20 00:02:50 2015 (-0500)
-#           By: subha
-#     Update #: 4
+# Last-Updated: Tue Jun 17 15:55:30 2025 (+0530)
+#           By: Subhasis Ray
+#     Update #: 221
 # URL:
 # Keywords:
 # Compatibility:
@@ -51,85 +51,116 @@ import matplotlib.pyplot as plt
 
 import moose
 
-simtime = 1.0
 
-def example():
+def function_example(simtime=1.0):
     """Function objects can be used to evaluate expressions with arbitrary
     number of variables and constants. We can assign expression of the
     form::
 
-        f(c0, c1, ..., cM, x0, x1, ..., xN, y0,..., yP )
+        f(t, c0, c1, ..., cM, x0, x1, ..., xN, y0,..., yP )
 
     where `c_i`'s are constants and `x_i`'s and `y_i`'s are variables.
+    The syntax of the expression follows exprtk
+    (https://github.com/ArashPartow/exprtk), the C++ library used for
+    parsing and evaluating it.
+    
+    The constants must be defined before setting the expression.
+    This is done by assigning key, value pairs to the lookup field `c`.
 
-    The constants must be defined before setting the expression and
-    variables are connected via messages. The constants can have any
-    name, but the variable names must be of the form x{i} or y{i}
-    where i is increasing integer starting from 0.
+    The identifier `t` represents simulated time. This is always taken
+    from the clock ticks associated with the function object.
+    
+    Function differentiates variables based on how their values are
+    obtained. There are two arrays of variables: `x` and `y`.
 
-    The `x_i`'s are field elements and you have to set their number
-    first (function.x.num = N). Then you can connect any source field
-    sending out double to the 'input' destination field of the
-    `x[i]`.
+    - The field element `x` has an 'input' destination field in every
+      entry. You can connect any source field sending out double to
+      this field. Thus values of `x` variables are 'pushed' by source
+      objects.
 
-    The `y_i`'s are useful when the required variable is a value field
-    and is not available as a source field. In that case you connect
-    the `requestOut` source field of the function element to the
-    `get{Field}` destination field on the target element. The `y_i`'s
-    are automatically added on connecting. Thus, if you call::
+    - If ``allowUnknownVariables`` field is `False`, then field element
+      entry `x[i]` corresponds to 'xi' in `expr`. If
+      `allowUnknowVariables` field is `True`, then identifiers not
+      defined as a constant are treated as variable.
 
-       moose.connect(function, 'requestOut', a, 'getSomeField')
-       moose.connect(function, 'requestOut', b, 'getSomeField')
+      Among these, those that are not of the form 'yi', where `i` is a
+      nonnegative integer, are stored in the ``x`` array. The index
+      `i` can be looked up in the ``xindex`` field. `index =
+      function.xindex[v]` will give the index of the variable 'v' in
+      `expr`.
+
+   - If you want to include a value field `field` of another element
+     as a variable, you must use an identifier of the form 'yi' for it
+     in the expression, and connect the `requestOut` source field of
+     the function element to the `get{Field}` destination field on the
+     target element. Thus values for `y` variables are 'pulled' from
+     the target element field.
+
+     The y-index follows the sequence of connection, starting with
+     0. Thus, if you call::
+
+       `moose.connect(function, 'requestOut', a, 'getSomeField')`
+       `moose.connect(function, 'requestOut', b, 'getAnotherField')`
 
     then ``a.someField`` will be assigned to ``y0`` and
-    ``b.someField`` will be assigned to ``y1``.
+    ``b.anotherField`` will be assigned to ``y1``.
 
-    In this example we evaluate the expression: ``z = c0 * exp(c1 *
-    x0) * cos(y0)``
+    In this example we evaluate the expression:
 
-    with x0 ranging from -1 to +1 and y0 ranging from -pi to
-    +pi. These values are stored in two stimulus tables called xtab
-    and ytab respectively, so that at each timestep the next values of
-    x0 and y0 are assigned to the function.
+    `Q * exp(-t / tau) + stim + cos(y0)`
+
+    where `tau` is a constant, `Q` is pushed from a ``PulseGen``
+    object, `stim` is pushed from a ``StimulusTable``, and ``y0`` is
+    pulled from another ``StimulusTable`` object.
 
     Along with the value of the expression itself we also compute its
-    derivative with respect to y0 and its derivative with respect to
-    time (rate). The former uses a five-point stencil for the
-    numerical differentiation and has a glitch at y=0. The latter uses
-    backward difference divided by dt.
+    derivative with respect to 'y0' and its derivative with respect to
+    time (rate).
 
-    Unlike Func class, the number of variables and constants are
-    unlimited in Function and you can set all the variables via
-    messages.
+    Note that Function elements are assigned a slow clock tick by
+    default, hence we need to update the `dt` of the clock using
+    ``moose.setClock`` function to that of its input elements. Also
+    notice the blip at the onset.
 
     """
     demo = moose.Neutral('/model')
-    function = moose.Function('/model/function')
-    function.c['c0'] = 1.0
-    function.c['c1'] = 2.0
-    #function.x.num = 1
-    function.expr = 'c0 * exp(c1*x0) * cos(y0) + sin(t)'
+    function = moose.Function('/model/fn')
+    function.c['tau'] = 1.0
+    function.expr = 'Q * exp(-t/tau) + stim + cos(y0)'
     # mode 0 - evaluate function value, derivative and rate
     # mode 1 - just evaluate function value,
     # mode 2 - evaluate derivative,
-    # mode 3 - evaluate rate
+    # mode 3 - evaluate only rate
     function.mode = 0
     function.independent = 'y0'
-    nsteps = 1000
-    xarr = np.linspace(0.0, 1.0, nsteps)
+
+    pg = moose.PulseGen(f'{demo.path}/pg')
+    pg.firstDelay = 0.5
+    pg.firstWidth = 1.0
+    pg.firstLevel = 1.0
+    pg.baseLevel = 0.0
     # Stimulus tables allow you to store sequences of numbers which
     # are delivered via the 'output' message at each time step. This
     # is a placeholder and in real scenario you will be using any
     # sourceFinfo that sends out a double value.
-    input_x = moose.StimulusTable('/xtab')
+    input_x = moose.StimulusTable(f'{demo.path}/xtab')
+    nsteps = int(simtime / function.dt)
+    xarr = np.linspace(0.0, 1.0, nsteps)
     input_x.vector = xarr
     input_x.startTime = 0.0
     input_x.stepPosition = xarr[0]
     input_x.stopTime = simtime
-    moose.connect(input_x, 'output', function.x[0], 'input')
 
+    # retrieve the indices of the variables
+    q_idx = function.xindex['Q']
+    stim_idx = function.xindex['stim']
+
+    moose.connect(pg, 'output', function.x[q_idx], 'input')
+    moose.connect(input_x, 'output', function.x[stim_idx], 'input')
+
+    # Pulled variable
     yarr = np.linspace(-np.pi, np.pi, nsteps)
-    input_y = moose.StimulusTable('/ytab')
+    input_y = moose.StimulusTable(f'{demo.path}/ytab')
     input_y.vector = yarr
     input_y.startTime = 0.0
     input_y.stepPosition = yarr[0]
@@ -137,57 +168,63 @@ def example():
     moose.connect(function, 'requestOut', input_y, 'getOutputValue')
 
     # data recording
-    result = moose.Table('/ztab')
-    moose.connect(result, 'requestOut', function, 'getValue')
-    derivative = moose.Table('/zprime')
+    data = moose.Neutral('/data')
+    value = moose.Table(f'{data.path}/value_tab')
+    moose.connect(value, 'requestOut', function, 'getValue')
+    derivative = moose.Table(f'{data.path}/derivative_tab')
     moose.connect(derivative, 'requestOut', function, 'getDerivative')
-    rate = moose.Table('/dz_by_dt')
+    rate = moose.Table(f'{data.path}/rate_tab')
     moose.connect(rate, 'requestOut', function, 'getRate')
-    x_rec = moose.Table('/xrec')
+    q_rec = moose.Table(f'{data.path}/Q_tab')
+    moose.connect(q_rec, 'requestOut', pg, 'getOutputValue')
+    x_rec = moose.Table(f'{data.path}/xrec')
     moose.connect(x_rec, 'requestOut', input_x, 'getOutputValue')
-    y_rec = moose.Table('/yrec')
+    y_rec = moose.Table(f'{data.path}/yrec')
     moose.connect(y_rec, 'requestOut', input_y, 'getOutputValue')
 
-    dt =  simtime/nsteps
-    for ii in range(32):
-        moose.setClock(ii, dt)
+    for comp in moose.wildcardFind(f'{demo.path}/##'):
+        print(comp.path, 'tick =', comp.tick, 'dt =', comp.dt)
+        # Notice that by default Function objects are on a slow tick. Make it same as the inputs
+
+    moose.setClock(function.tick, pg.dt)
+
+    
     moose.reinit()
+
     moose.start(simtime)
 
-    # Uncomment the following lines and the import matplotlib.pyplot as plt on top
-    # of this file to display the plot.
-    plt.subplot(3,1,1)
-    plt.plot(x_rec.vector, result.vector, 'r-', label='z = {}'.format(function.expr))
-    z = function.c['c0'] * np.exp(function.c['c1'] * xarr) * np.cos(yarr) + np.sin(np.arange(len(xarr)) * dt)
-    plt.plot(xarr, z, 'b--', label='numpy computed')
-    plt.xlabel('x')
-    plt.ylabel('z')
+    plt.subplot(411)
+    plt.title('Variables')
+    t = np.arange(len(value.vector)) * value.dt
+    plt.plot(t, q_rec.vector, label='Q')
+    plt.plot(t, x_rec.vector, label='stim')
+    plt.plot(t, y_rec.vector, label='y0')
+    plt.legend()
+    plt.subplot(412)
+    plt.title('Function value')
+    plt.plot(t, value.vector, label=f'value = {function.expr}')
+    z = q_rec.vector * np.exp(-t/function.c['tau']) + x_rec.vector + np.cos(y_rec.vector)
+    plt.plot(t, z, '--', label='numpy computed')
     plt.legend()
 
-    plt.subplot(3,1,2)
-    plt.plot(y_rec.vector, derivative.vector, 'r-', label='dz/dy0')
-    # derivatives computed by putting x values in the analytical formula
-    dzdy = function.c['c0'] * np.exp(function.c['c1'] * xarr) * (- np.sin(yarr))
-    plt.plot(yarr, dzdy, 'b--', label='numpy computed')
-    plt.xlabel('y')
-    plt.ylabel('dz/dy')
+    plt.subplot(413)
+    plt.title('Derivateive wrt y0')
+    plt.plot(y_rec.vector, derivative.vector, label='d(value)/dy0')
     plt.legend()
 
-    plt.subplot(3,1,3)
+    plt.subplot(414)
+    plt.title('Rate (derivative wrt t)')
     # *** BEWARE *** The first two entries are spurious. Entry 0 is
     # *** from reinit sending out the defaults. Entry 2 is because
     # *** there is no lastValue for computing real forward difference.
-    plt.plot(np.arange(2, len(rate.vector), 1) * dt, rate.vector[2:], 'r-', label='dz/dt')
-    dzdt = np.diff(z)/dt
-    plt.plot(np.arange(0, len(dzdt), 1.0) * dt, dzdt, 'b--', label='numpy computed')
-    plt.xlabel('t')
-    plt.ylabel('dz/dt')
+    plt.plot(np.arange(2, len(rate.vector), 1) * rate.dt, rate.vector[2:], label='d(value)/dt')
     plt.legend()
     plt.tight_layout()
     plt.show()
 
+    
 if __name__ == '__main__':
-    example()
+    function_example()
 
 
 
