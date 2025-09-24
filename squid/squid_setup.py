@@ -6,9 +6,9 @@
 # Maintainer: 
 # Created: Wed Feb 22 23:24:21 2012 (+0530)
 # Version: 
-# Last-Updated: Wed Sep 24 19:09:34 2025 (+0530)
+# Last-Updated: Wed Sep 24 21:53:47 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 177
+#     Update #: 178
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -77,9 +77,6 @@ class SquidSetup(object):
         self.simdt = self.axon.dt
         self.plotdt = self.vm_table.dt
         moose.reinit()
-        print('#' * 70, 'initVm', self.axon.C.initVm)
-        print('#' * 70, 'Vm', self.axon.C.Vm)
-        print('#' * 70, 'Em', self.axon.C.Em)
         
         
     def run(self, runtime):
