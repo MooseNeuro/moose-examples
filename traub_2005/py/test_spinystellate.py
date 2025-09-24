@@ -6,9 +6,9 @@
 # Maintainer: 
 # Created: Mon Jul 16 16:12:55 2012 (+0530)
 # Version: 
-# Last-Updated: Wed Jun  7 11:39:16 2023 (+0530)
+# Last-Updated: Thu Apr 10 13:18:45 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 494
+#     Update #: 499
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -52,17 +52,12 @@ class TestSpinyStellate(SingleCellCurrentStepTest):
     def __init__(self, *args, **kwargs):
         self.celltype = 'SpinyStellate'
         SingleCellCurrentStepTest.__init__(self, *args, **kwargs)
-        self.pulse_array = [(100e-3, 100e-3, 1e-9),
-                            (1e9, 0, 0)]
-        # self.solver = 'ee'
-        self.simdt = simdt
-        self.plotdt = plotdt
 
     def setUp(self):
         SingleCellCurrentStepTest.setUp(self)
 
     def testVmSeriesPlot(self):
-        self.runsim(simtime, pulsearray=self.pulse_array)
+        self.runsim(simtime, pulse_list=self.pulse_list)
         self.plot_vm()
 
     def testChannelDensities(self):

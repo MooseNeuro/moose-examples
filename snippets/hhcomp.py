@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Tue May  7 12:11:22 2013 (+0530)
 # Version:
-# Last-Updated: Tue Apr  8 13:52:19 2025 (+0530)
+# Last-Updated: Sun Apr 20 14:05:09 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 339
+#     Update #: 342
 # URL:
 # Keywords:
 # Compatibility:
@@ -93,7 +93,8 @@ def create_na_chan(
     plt.legend()
     plt.show()
     plt.close()
-    na.tick = -1
+    if parent == 'library':
+        na.tick = -1
     return na
 
 
@@ -124,7 +125,8 @@ def create_k_chan(
     plt.plot(v, 1 / (n_alpha + n_beta))
     plt.show()
     plt.close()
-    k.tick = -1
+    if parent == '/library':
+        k.tick = -1
     return k
 
 
@@ -176,7 +178,7 @@ def create_passive_comp(
 
 
 def create_hhcomp(
-    parent='/library', name='hhcomp', diameter=-30e-6, length=0.0
+    parent='/library', name='hhcomp', diameter=30e-6, length=0.0
 ):
     """Create a compartment with Hodgkin-Huxley type ion channels (Na and
     K).

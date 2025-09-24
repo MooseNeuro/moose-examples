@@ -6,9 +6,9 @@
 # Maintainer: 
 # Created: Wed Feb 22 23:24:21 2012 (+0530)
 # Version: 
-# Last-Updated: Tue Mar  6 23:25:50 2012 (+0530)
+# Last-Updated: Wed Sep 24 21:53:47 2025 (+0530)
 #           By: Subhasis Ray
-#     Update #: 162
+#     Update #: 178
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -69,26 +69,15 @@ class SquidSetup(object):
         self.gk_table = moose.Table('/data/GK')
         moose.connect(self.gk_table, 'requestOut', self.axon.K_channel.chan, 'getGk')
         
-    def schedule(self, simdt, plotdt, clampmode):
-        self.simdt = simdt
-        self.plotdt = plotdt
+    def schedule(self, clampmode):
         if clampmode == 'vclamp':
             self.clamp_ckt.do_voltage_clamp()
         else:
             self.clamp_ckt.do_current_clamp()
-        moose.setClock(0, simdt)
-        moose.setClock(1, simdt)
-        moose.setClock(2, simdt)
-        moose.setClock(3, plotdt)
-        # Ensure we do not create multiple scheduling
-        if not self.scheduled:
-            moose.useClock(0, '%s/#[TYPE=Compartment]' % (self.model_container.path), 'init')
-            moose.useClock(0, '%s/##' % (self.clamp_ckt.path), 'process')
-            moose.useClock(1, '%s/#[TYPE=Compartment]' % (self.model_container.path), 'process')
-            moose.useClock(2, '%s/#[TYPE=HHChannel]' % (self.axon.path), 'process')
-            moose.useClock(3, '%s/#[TYPE=Table]' % (self.data_container.path), 'process')
-            self.scheduled = True
+        self.simdt = self.axon.dt
+        self.plotdt = self.vm_table.dt
         moose.reinit()
+        
         
     def run(self, runtime):
         moose.start(runtime)
@@ -109,7 +98,7 @@ if __name__ == '__main__':
         demo.clamp_ckt.configure_pulses()
     else:
         demo.clamp_ckt.configure_pulses(baseLevel=0.0, firstDelay=10.0, firstLevel=SquidAxon.EREST_ACT, firstWidth=0.0, secondDelay=0.0, secondLevel=50.0+SquidAxon.EREST_ACT, secondWidth=20.0)
-    demo.schedule(1e-2, 0.01, clamp_mode)
+    demo.schedule(clamp_mode)
     
     demo.run(50.0)
     demo.save_data()

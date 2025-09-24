@@ -22,6 +22,7 @@
 *relative
 *asymmetric
 *set_global EREST_ACT -0.075
+// *set_global ELEAK -0.075 
 *set_compt_param RM 5
 *set_compt_param CM 0.009
 *set_compt_param RA 2.5

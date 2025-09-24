@@ -6,9 +6,9 @@
 # Maintainer: 
 # Created: Wed May 23 11:31:40 2012 (+0530)
 # Version: 
-# Last-Updated: Sun Jun 25 15:34:25 2017 (-0400)
-#           By: subha
-#     Update #: 141
+# Last-Updated: Mon May 12 19:05:05 2025 (+0530)
+#           By: Subhasis Ray
+#     Update #: 142
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -43,6 +43,7 @@ spikeRecordingSettings = settings.DataSettings()
 changeSettings = settings.ChangeSettings()
 
 simulationSettings.endTime = 10.0
+simulationSettings.solver = 'hsolve'
 
 modelSettings.container = '/network'
 modelSettings.libpath = '/library'
