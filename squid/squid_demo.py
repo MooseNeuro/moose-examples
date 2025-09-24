@@ -4,7 +4,7 @@
 # Maintainer:  Dilawar Singh <dilawars@ncbs.res.in>
 # Created: Mon Jul  9 18:23:55 2012 (+0530)
 # Version: 
-# Last-Updated: Thu Jun 15 15:15:58 2023 (+0530)
+# Last-Updated: Wed Sep 24 19:05:56 2025 (+0530)
 #       PyQt5 version
 
 import sys
@@ -661,7 +661,7 @@ class SquidGui( QMainWindow ):
         self.squid_setup.axon.K_in = self.getFloatInput(self._kInEdit, self._kInLabel.text())
         self.squid_setup.axon.Na_in = self.getFloatInput(self._naInEdit, self._naInLabel.text())
         self.squid_setup.axon.updateEk()
-        self.squid_setup.schedule(self._simdt, self._plotdt, clampMode)
+        self.squid_setup.schedule(clampMode)
         # The following line is for use with Qthread
         self.squid_setup.run(self._runtime)
         self._updateAllPlots()
@@ -825,7 +825,7 @@ class SquidGui( QMainWindow ):
         layout.addWidget(self._helpMessageText)
         self._squidGuiPath = os.path.dirname(os.path.abspath(__file__))
         self._helpBaseURL = os.path.join(self._squidGuiPath,'help.html')
-        self._helpMessageText.setSource(QtCore.QUrl(self._helpBaseURL))
+        self._helpMessageText.setSource(QtCore.QUrl.fromLocalFile(self._helpBaseURL))
         self._helpMessageText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._helpMessageArea.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._helpMessageText.setMinimumSize(800, 600)

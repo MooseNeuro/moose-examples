@@ -176,6 +176,7 @@ class SquidAxon(object):
         #  moose.Compartment.__init__(self, path)
         self.path = path
         self.C = moose.Compartment(self.path)
+        self.dt = self.C.dt
         self.temperature = SquidAxon.defaults["temperature"]
         self.K_out = SquidAxon.defaults["K_out"]
         self.Na_out = SquidAxon.defaults["Na_out"]
@@ -300,6 +301,9 @@ class SquidAxon(object):
         """Update the channels' Ek"""
         self.Na_channel.chan.Ek = self.VNa
         self.K_channel.chan.Ek = self.VK
+        # Special case for both channels blocked
+        if self.K_channel.chan.Gbar == 0 and self.Na_channel.chan.Gbar == 0:
+            self.C.Em = 0.0
 
     def get_celsius(self):
         return self.temperature - CELSIUS_TO_KELVIN

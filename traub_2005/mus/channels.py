@@ -13,9 +13,9 @@ import moose
 from config import logger
 
 # Voltage range for HH gate interpolation tables
-VMIN = -100e-3
-VMAX = 100e-3
-VDIVS = 1000
+VMIN = -0.12
+VMAX = 0.04
+VDIVS = 640
 
 CMIN = 0
 CMAX = 1e3
@@ -360,6 +360,8 @@ channel_spec = {
         'Xpower': 3,
         'Ypower': 1,
         'X': 0.0,
+        # -2.5 mV is fastNa_shift used for tweaking the channel for
+        # some neuron classes
         'gateX': {
             'tauExpr': (
                 'if ((v + (-2.5e-3)) < -30e-3,'
@@ -369,7 +371,7 @@ channel_spec = {
                 '    exp((- v - (-2.5e-3) - 30e-3) / 10e-3)))'
             ),
             'infExpr': (
-                '1.0 / (1.0 + ' '    exp(( - v - (-2.5e-3) - 38e-3) / 10e-3))'
+                '1.0 / (1.0 + exp(( - v - (-2.5e-3) - 38e-3) / 10e-3))'
             ),
         },
         'gateY': {
@@ -433,6 +435,7 @@ channel_spec = {
         'Ek': E_Na,
         'Xpower': 3,
         'X': 0.0,
+        # For spiny stellate, a fastNa_shift of -2.5 mV is added
         'gateX': {
             'tauExpr': (
                 'if ((v + (-2.5e-3)) < -30e-3,'

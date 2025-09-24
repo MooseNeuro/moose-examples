@@ -100,7 +100,6 @@ cell_spec = {
         },
         'X_AR': 0.0,
         'tauCa': {'all': 20e-3, 'comp_1': 50e-3},
-        'X_AR': 0.0,
     },
     'SupAxoaxonic': {
         'proto': 'SupAxoaxonic.p',
