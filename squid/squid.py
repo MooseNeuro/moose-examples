@@ -21,13 +21,13 @@ class IonChannel(object):
         """Instantuate an ion channel.
 
         name -- name of the channel.
-        
+
         compartment -- moose.Compartment object that contains the channel.
 
         specific_gbar -- specific value of maximum conductance.
 
         e_rev -- reversal potential of the channel.
-        
+
         Xpower -- exponent for the first gating parameter.
 
         Ypower -- exponent for the second gatinmg component.
@@ -337,8 +337,16 @@ class SquidModel(object):
         moose.connect(self.gNa_table, "requestOut", self.axon.Na_channel.chan, "getGk")
         self.clocks_assigned = False
 
-    def run(self, runtime, simdt=1e-6):
+    def run(self, runtime, simdt=1e-3):
         self.axon.updateEk()
+        for tick in range(32):
+            moose.setClock(tick, simdt)
+        # Set the table ticks to 10 x simdt
+        tab_ticks = set()
+        for tab in moose.wildcardFind('/##[ISA=Table]'):
+            tab_ticks.add(tab.tick)
+        for tick in tab_ticks:
+            moose.setClock(tick, simdt * 10)
         moose.reinit()
         moose.start(runtime)
 
@@ -358,18 +366,25 @@ class SquidModel(object):
             np.savetxt("Na_beta_h.dat", self.axon.Na_channel.beta_h)
             print("Na conductance saved to gNa.dat")
 
-    def plot_data(self):
+    def plot_data(self, savefig='HH_squid.png'):
         import matplotlib.pyplot as plt
-
-        ax11 = plt.subplot(121)
-        ax12 = plt.subplot(122)
-        ax11.plot(self.Vm_table.vector)
-        ax12.plot(self.gNa_table.vector)
-        ax12.plot(self.gK_table.vector)
+        fig, axes = plt.subplots(nrows=2, ncols=1, sharex='all')
+        t = np.arange(len(self.Vm_table.vector)) * self.Vm_table.dt
+        axes[0].plot(t, self.Vm_table.vector)
+        axes[1].plot(t, self.gNa_table.vector, label='gNa')
+        axes[1].plot(t, self.gK_table.vector, label='gK')
+        axes[0].set_ylabel('Voltage (mV)')
+        axes[1].set_ylabel('Specific conductance (mS/cm^2)')
+        axes[1].set_xlabel('Time (ms)')
+        axes[1].legend()
+        for ax in axes:
+            for side, spine in ax.spines.items():
+                spine.set_visible(False)
+        fig.savefig(savefig)
         plt.show()
 
 
-def test(runtime=100.0, simdt=1e-2):
+def test(runtime=60.0, simdt=1e-2):
     model = SquidModel("/model")
     model.run(runtime, simdt)
     # model.save_data()

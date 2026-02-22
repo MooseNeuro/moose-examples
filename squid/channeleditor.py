@@ -1,30 +1,30 @@
-# channeleditor.py --- 
-# 
+# channeleditor.py ---
+#
 # Filename: channeleditor.py
-# Description: 
+# Description:
 # Author: Subhasis Ray
-# Maintainer: 
+# Maintainer:
 # Created: Wed Jul 18 19:06:39 2012 (+0530)
-# Version: 
-# Last-Updated: Wed Aug  8 16:36:10 2012 (+0530)
+# Version:
+# Last-Updated: Fri Jan 23 18:26:08 2026 (+0530)
 #           By: Subhasis Ray
-#     Update #: 179
-# URL: 
-# Keywords: 
-# Compatibility: 
-# 
-# 
+#     Update #: 181
+# URL:
+# Keywords:
+# Compatibility:
+#
+#
 
-# Commentary: 
-# 
+# Commentary:
+#
 # A widget for editing Hodgkin-Huxley type ion channels.
-# 
-# 
+#
+#
 
 # Change log:
-# 
-# 
-# 
+#
+#
+#
 
 # Code:
 
@@ -35,7 +35,7 @@ import ast
 
 class GateEditor(QtWidgets.QWidget):
     """Utility to edit gate equations.
-    
+
     It provides two line edits to enter the alpha and beta equations
     directly.
     """
@@ -46,7 +46,7 @@ class GateEditor(QtWidgets.QWidget):
         self.useCaButton = QtWidgets.QRadioButton('Use Ca', self)
         self.useCaButton.setChecked(False)
         self.symbolGroup = QtWidgets.QGroupBox(self)
-        layout = QtWidgets.QHBoxLayout()        
+        layout = QtWidgets.QHBoxLayout()
         # self.symbolGroup.setExclusive(True)
         layout.addWidget(self.useVButton)
         layout.addWidget(self.useCaButton)
@@ -91,7 +91,7 @@ class GateEditor(QtWidgets.QWidget):
         self.setLayout(layout)
         self.okButton.clicked.connect(self.evalGateExpressions)
         self.formCombo.currentIndexChanged.connect(self.switchEquationForm)
-        
+
     def toggleInputPanel(self, on):
         self.inputPanel.setVisible(on)
         self.adjustSize()
@@ -123,11 +123,9 @@ class GateEditor(QtWidgets.QWidget):
     %s = vrange[ii]
     a[ii] = %s
     b[ii] = %s
-        """ % (symbol, a_expr, b_expr)            
-        print(code)
+        """ % (symbol, a_expr, b_expr)
         tree = compile(code, '<string>', 'exec')
         exec(tree)
-        print((a, b))
         return {'min': vmin,
                 'max': vmax,
                 'divs': vdivs,
@@ -142,5 +140,5 @@ if __name__ == '__main__':
     editor.show()
     sys.exit(app.exec_())
 
-# 
+#
 # channeleditor.py ends here

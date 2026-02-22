@@ -1,30 +1,30 @@
-# squid_demo.py --- 
-# 
+# squid_demo.py ---
+#
 # Filename: squid_demo.py
-# Description: 
+# Description:
 # Author: Subhasis Ray
-# Maintainer: 
+# Maintainer:
 # Created: Wed Feb 22 23:24:21 2012 (+0530)
-# Version: 
-# Last-Updated: Wed Sep 24 21:53:47 2025 (+0530)
+# Version:
+# Last-Updated: Fri Jan 23 19:25:43 2026 (+0530)
 #           By: Subhasis Ray
-#     Update #: 178
-# URL: 
-# Keywords: 
-# Compatibility: 
-# 
-# 
+#     Update #: 187
+# URL:
+# Keywords:
+# Compatibility:
+#
+#
 
-# Commentary: 
-# 
-# 
-# 
-# 
+# Commentary:
+#
+#
+#
+#
 
 # Change log:
-# 
-# 
-# 
+#
+#
+#
 
 # Code:
 
@@ -35,13 +35,13 @@ from electronics import ClampCircuit
 
 class SquidSetup(object):
     def __init__(self):
-        self.scheduled = False        
+        self.scheduled = False
         self.model_container = moose.Neutral('/model')
         self.data_container = moose.Neutral('/data')
         self.axon = SquidAxon('/model/axon')
         self.clamp_ckt = ClampCircuit('/model/electronics', self.axon)
-        self.simdt = 0.0
-        self.plotdt = 0.0
+        self.simdt = 0.025  # ms
+        self.plotdt = 0.1
         self.setup_recording()
 
     def setup_recording(self):
@@ -68,17 +68,19 @@ class SquidSetup(object):
         moose.connect(self.gna_table, 'requestOut', self.axon.Na_channel.chan, 'getGk')
         self.gk_table = moose.Table('/data/GK')
         moose.connect(self.gk_table, 'requestOut', self.axon.K_channel.chan, 'getGk')
-        
+
     def schedule(self, clampmode):
         if clampmode == 'vclamp':
             self.clamp_ckt.do_voltage_clamp()
         else:
             self.clamp_ckt.do_current_clamp()
-        self.simdt = self.axon.dt
-        self.plotdt = self.vm_table.dt
+        for tick in range(32):
+            moose.setClock(tick, self.simdt)
+        for tab in moose.wildcardFind('/data/#'):
+            moose.setClock(tab.tick, self.plotdt)
         moose.reinit()
-        
-        
+
+
     def run(self, runtime):
         moose.start(runtime)
 
@@ -87,7 +89,7 @@ class SquidSetup(object):
             tab = moose.Table(moose.element(child))
             tab.xplot('%s.dat' % (tab.name), tab.name)
 
-import sys            
+import sys
 clamp_mode = 'vclamp'
 if __name__ == '__main__':
     demo = SquidSetup()
@@ -99,9 +101,9 @@ if __name__ == '__main__':
     else:
         demo.clamp_ckt.configure_pulses(baseLevel=0.0, firstDelay=10.0, firstLevel=SquidAxon.EREST_ACT, firstWidth=0.0, secondDelay=0.0, secondLevel=50.0+SquidAxon.EREST_ACT, secondWidth=20.0)
     demo.schedule(clamp_mode)
-    
+
     demo.run(50.0)
     demo.save_data()
 
-# 
+#
 # squid_demo.py ends here
