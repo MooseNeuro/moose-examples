@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Wed Feb 22 23:24:21 2012 (+0530)
 # Version:
-# Last-Updated: Fri Jan 23 19:25:43 2026 (+0530)
+# Last-Updated: Mon Mar 16 15:23:28 2026 (+0530)
 #           By: Subhasis Ray
-#     Update #: 187
+#     Update #: 226
 # URL:
 # Keywords:
 # Compatibility:
@@ -35,7 +35,6 @@ from electronics import ClampCircuit
 
 class SquidSetup(object):
     def __init__(self):
-        self.scheduled = False
         self.model_container = moose.Neutral('/model')
         self.data_container = moose.Neutral('/data')
         self.axon = SquidAxon('/model/axon')
@@ -43,11 +42,12 @@ class SquidSetup(object):
         self.simdt = 0.025  # ms
         self.plotdt = 0.1
         self.setup_recording()
+        self.schedule()
 
     def setup_recording(self):
         # Setup data collection
         self.vm_table = moose.Table('/data/Vm')
-        moose.connect(self.vm_table, 'requestOut', self.axon.C, 'getVm')
+        moose.connect(self.vm_table, 'requestOut', self.axon.compartment, 'getVm')
         self.cmd_table = moose.Table('/data/command')
         moose.connect(self.cmd_table, 'requestOut', self.clamp_ckt.vclamp, 'getOutputValue')
         self.iclamp_table = moose.Table('/data/Iclamp')
@@ -69,19 +69,20 @@ class SquidSetup(object):
         self.gk_table = moose.Table('/data/GK')
         moose.connect(self.gk_table, 'requestOut', self.axon.K_channel.chan, 'getGk')
 
-    def schedule(self, clampmode):
-        if clampmode == 'vclamp':
-            self.clamp_ckt.do_voltage_clamp()
-        else:
-            self.clamp_ckt.do_current_clamp()
+    def schedule(self):
         for tick in range(32):
             moose.setClock(tick, self.simdt)
         for tab in moose.wildcardFind('/data/#'):
             moose.setClock(tab.tick, self.plotdt)
-        moose.reinit()
 
+    def switch_clamp(self, clampmode):
+        if clampmode == 'vclamp':
+            self.clamp_ckt.do_voltage_clamp()
+        else:
+            self.clamp_ckt.do_current_clamp()
 
     def run(self, runtime):
+        moose.reinit()
         moose.start(runtime)
 
     def save_data(self):

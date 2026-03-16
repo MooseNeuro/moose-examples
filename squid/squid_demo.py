@@ -4,7 +4,7 @@
 # Maintainer:  Dilawar Singh <dilawars@ncbs.res.in>
 # Created: Mon Jul  9 18:23:55 2012 (+0530)
 # Version:
-# Last-Updated: Fri Jan 23 18:33:34 2026 (+0530)
+# Last-Updated: Mon Mar 16 15:22:00 2026 (+0530)
 #       PyQt5 version
 
 import sys
@@ -197,7 +197,6 @@ class SquidGui( QMainWindow ):
         self._plotCanvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._plotCanvas.updateGeometry()
         self._plotCanvas.setParent(self._plotWidget)
-        self._plotCanvas.mpl_connect('scroll_event', self._onScroll)
         self._plotFigure.set_canvas(self._plotCanvas)
         # Vm and command voltage go in the same subplot
         self._vm_axes = self._plotFigure.add_subplot(2,2,1, title='Membrane potential')
@@ -272,8 +271,8 @@ class SquidGui( QMainWindow ):
     def _createRunControl(self):
         self._runControlBox = QGroupBox(self)
         self._runControlBox.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self._runTimeLabel = QLabel("Run time (ms)", self._runControlBox)
-        self._simTimeStepLabel = QLabel("Simulation time step (ms)", self._runControlBox)
+        self._runTimeLabel = QLabel('Run time (ms)', self._runControlBox)
+        self._simTimeStepLabel = QLabel('Simulation time step (ms)', self._runControlBox)
         self._runTimeEdit = QLineEdit('%g' % (SquidGui.defaults['runtime']), self._runControlBox)
         set_default_line_edit_size(self._runTimeEdit)
         self._simTimeStepEdit = QLineEdit('%g' % (SquidGui.defaults['simdt']), self._runControlBox)
@@ -387,17 +386,17 @@ class SquidGui( QMainWindow ):
     def _getVClampCtrlBox(self):
         vClampPanel = QGroupBox(self)
         self._vClampCtrlBox = vClampPanel
-        self._holdingVLabel = QLabel("Holding Voltage (mV)", vClampPanel)
+        self._holdingVLabel = QLabel('Holding Voltage (mV)', vClampPanel)
         self._holdingVEdit = QLineEdit('%g' % (SquidGui.defaults['vclamp.holdingV']), vClampPanel)
-        self._holdingTimeLabel = QLabel("Holding Time (ms)", vClampPanel)
+        self._holdingTimeLabel = QLabel('Holding Time (ms)', vClampPanel)
         self._holdingTimeEdit = QLineEdit('%g' % (SquidGui.defaults['vclamp.holdingT']), vClampPanel)
-        self._prePulseVLabel = QLabel("Pre-pulse Voltage (mV)", vClampPanel)
+        self._prePulseVLabel = QLabel('Pre-pulse Voltage (mV)', vClampPanel)
         self._prePulseVEdit = QLineEdit('%g' % (SquidGui.defaults['vclamp.prepulseV']), vClampPanel)
-        self._prePulseTimeLabel = QLabel("Pre-pulse Time (ms)", vClampPanel)
+        self._prePulseTimeLabel = QLabel('Pre-pulse Time (ms)', vClampPanel)
         self._prePulseTimeEdit = QLineEdit('%g' % (SquidGui.defaults['vclamp.prepulseT']), vClampPanel)
-        self._clampVLabel = QLabel("Clamp Voltage (mV)", vClampPanel)
+        self._clampVLabel = QLabel('Clamp Voltage (mV)', vClampPanel)
         self._clampVEdit = QLineEdit('%g' % (SquidGui.defaults['vclamp.clampV']), vClampPanel)
-        self._clampTimeLabel = QLabel("Clamp Time (ms)", vClampPanel)
+        self._clampTimeLabel = QLabel('Clamp Time (ms)', vClampPanel)
         self._clampTimeEdit = QLineEdit('%g' % (SquidGui.defaults['vclamp.clampT']), vClampPanel)
         for child in vClampPanel.children():
             if isinstance(child, QLineEdit):
@@ -422,23 +421,23 @@ class SquidGui( QMainWindow ):
     def _getIClampCtrlBox(self):
         iClampPanel = QGroupBox(self)
         self._iClampCtrlBox = iClampPanel
-        self._baseCurrentLabel = QLabel("Base Current Level (uA)",iClampPanel)
+        self._baseCurrentLabel = QLabel('Base Current Level (uA)',iClampPanel)
         self._baseCurrentEdit = QLineEdit('%g' % (SquidGui.defaults['iclamp.baseI']),iClampPanel)
-        self._firstPulseLabel = QLabel("First Pulse Current (uA)", iClampPanel)
+        self._firstPulseLabel = QLabel('First Pulse Current (uA)', iClampPanel)
         self._firstPulseEdit = QLineEdit('%g' % (SquidGui.defaults['iclamp.firstI']), iClampPanel)
-        self._firstDelayLabel = QLabel("First Onset Delay (ms)", iClampPanel)
+        self._firstDelayLabel = QLabel('First Onset Delay (ms)', iClampPanel)
         self._firstDelayEdit = QLineEdit('%g' % (SquidGui.defaults['iclamp.firstD']),iClampPanel)
-        self._firstPulseWidthLabel = QLabel("First Pulse Width (ms)", iClampPanel)
+        self._firstPulseWidthLabel = QLabel('First Pulse Width (ms)', iClampPanel)
         self._firstPulseWidthEdit = QLineEdit('%g' % (SquidGui.defaults['iclamp.firstT']), iClampPanel)
-        self._secondPulseLabel = QLabel("Second Pulse Current (uA)", iClampPanel)
+        self._secondPulseLabel = QLabel('Second Pulse Current (uA)', iClampPanel)
         self._secondPulseEdit = QLineEdit('%g' % (SquidGui.defaults['iclamp.secondI']), iClampPanel)
-        self._secondDelayLabel = QLabel("Second Onset Delay (ms)", iClampPanel)
+        self._secondDelayLabel = QLabel('Second Onset Delay (ms)', iClampPanel)
         self._secondDelayEdit = QLineEdit('%g' % (SquidGui.defaults['iclamp.secondD']),iClampPanel)
-        self._secondPulseWidthLabel = QLabel("Second Pulse Width (ms)", iClampPanel)
+        self._secondPulseWidthLabel = QLabel('Second Pulse Width (ms)', iClampPanel)
         self._secondPulseWidthEdit = QLineEdit('%g' % (SquidGui.defaults['iclamp.secondT']), iClampPanel)
         self._pulseMode = QComboBox(iClampPanel)
-        self._pulseMode.addItem("Single Pulse")
-        self._pulseMode.addItem("Pulse Train")
+        self._pulseMode.addItem('Single Pulse')
+        self._pulseMode.addItem('Pulse Train')
         for child in iClampPanel.children():
             if isinstance(child, QLineEdit):
                 set_default_line_edit_size(child)
@@ -649,7 +648,7 @@ class SquidGui( QMainWindow ):
         self.squid_setup.axon.K_in = self.getFloatInput(self._kInEdit, self._kInLabel.text())
         self.squid_setup.axon.Na_in = self.getFloatInput(self._naInEdit, self._naInLabel.text())
         self.squid_setup.axon.updateEk()
-        self.squid_setup.schedule(clampMode)
+        self.squid_setup.switch_clamp(clampMode)
         # The following line is for use with Qthread
         self.squid_setup.run(self._runtime)
         self._updateAllPlots()
@@ -766,20 +765,6 @@ class SquidGui( QMainWindow ):
         self._secondDelayEdit.setText('%g' % (SquidGui.defaults['iclamp.secondD']))
         self._secondPulseWidthEdit.setText('%g' % (SquidGui.defaults['iclamp.secondT']))
         self._pulseMode.setCurrentIndex(0)
-
-    def _onScroll(self, event):
-        if event.inaxes is None:
-            return
-        axes = event.inaxes
-        zoom = 0.0
-        if event.button == 'up':
-            zoom = -1.0
-        elif event.button == 'down':
-            zoom = 1.0
-        if zoom != 0.0:
-            self._plotNavigator.push_current()
-            axes.zoom(zoom)
-        self._plotCanvas.draw()
 
     def closeEvent(self, event):
         qApp.closeAllWindows()
