@@ -4,7 +4,7 @@
 # Maintainer:  Dilawar Singh <dilawars@ncbs.res.in>
 # Created: Mon Jul  9 18:23:55 2012 (+0530)
 # Version:
-# Last-Updated: Mon Mar 16 15:22:00 2026 (+0530)
+# Last-Updated: Sun Apr  5 13:05:48 2026 (+0530)
 #       PyQt5 version
 
 import sys
@@ -22,6 +22,10 @@ from PyQt5.QtWidgets import QMessageBox
 
 import numpy
 from matplotlib.figure import Figure
+from matplotlib import cm
+from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 try:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
     from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -158,6 +162,7 @@ class SquidGui( QMainWindow ):
         self.squid_setup = SquidSetup()
         self._plotdt = SquidGui.defaults['plotdt']
         self._plot_dict = defaultdict(list)
+        self._runtime = self.defaults['runtime']
         self.setWindowTitle('Squid Axon simulation')
         self.setDockNestingEnabled(True)
         self._createRunControl()
@@ -228,7 +233,11 @@ class SquidGui( QMainWindow ):
         self._statePlotFigure.set_canvas(self._statePlotCanvas)
         self._statePlotFigure.subplots_adjust(hspace=0.5)
         self._statePlotAxes = self._statePlotFigure.add_subplot(2,1,1, title='State plot')
-        self._state_plot, = self._statePlotAxes.plot([], [], label='state')
+        self._statePlotAxes.set_aspect('auto',)
+        divider = make_axes_locatable(self._statePlotAxes)
+        self._statePlotColorbarAxes = divider.append_axes('right', size='5%', pad=0.05)
+        sm = cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(0, self._runtime))
+        self._statePlotColorBar = self._statePlotFigure.colorbar(sm, cax=self._statePlotColorbarAxes, label='Time (ms)')
         self._activationParamAxes = self._statePlotFigure.add_subplot(2,1,2, title='H-H activation parameters vs time')
         self._activationParamAxes.set_xlabel('Time (ms)')
         #for axis in self._plotFigure.axes:
@@ -356,24 +365,10 @@ class SquidGui( QMainWindow ):
         return numpy.asarray(data)
 
     def _statePlotYSlot(self, selectedItem):
-        ydata = self.__get_stateplot_data(str(selectedItem))
-        self._state_plot.set_ydata(ydata)
-        self._statePlotAxes.set_ylabel(selectedItem)
-        if str(selectedItem) == 'V':
-            self._statePlotAxes.set_ylim(-20, 120)
-        else:
-            self._statePlotAxes.set_ylim(0, 1)
-        self._statePlotCanvas.draw()
+        self._updateStatePlot()
 
     def _statePlotXSlot(self, selectedItem):
-        xdata = self.__get_stateplot_data(str(selectedItem))
-        self._state_plot.set_xdata(xdata)
-        self._statePlotAxes.set_xlabel(selectedItem)
-        if str(selectedItem) == 'V':
-            self._statePlotAxes.set_xlim(-20, 120)
-        else:
-            self._statePlotAxes.set_xlim(0, 1)
-        self._statePlotCanvas.draw()
+        self._updateStatePlot()
 
     def _createElectronicsControl(self):
         """Creates a tabbed widget of voltage clamp and current clamp controls"""
@@ -496,8 +491,8 @@ class SquidGui( QMainWindow ):
         self._plot_dict['ik'].append(self._ik_plot)
         # self._i_axes.legend()
         # State plots
-        self._state_plot, = self._statePlotAxes.plot([], [], label='state%s'%(suffix))
-        self._plot_dict['state'].append(self._state_plot)
+        # self._state_plot, = self._statePlotAxes.plot([], [], label='state%s'%(suffix))
+        # self._plot_dict['state'].append(self._state_plot)
         self._m_plot, = self._activationParamAxes.plot([],[], label='m%s'%(suffix))
         self._h_plot, = self._activationParamAxes.plot([], [], label='h%s'%(suffix))
         self._n_plot, = self._activationParamAxes.plot([], [], label='n%s'%(suffix))
@@ -565,7 +560,14 @@ class SquidGui( QMainWindow ):
         xdata = self.__get_stateplot_data(sx)
         ydata = self.__get_stateplot_data(sy)
         minlen = min(len(xdata), len(ydata))
-        self._state_plot.set_data(xdata[:minlen], ydata[:minlen])
+        # self._state_plot.set_data(xdata[:minlen], ydata[:minlen])
+        xdata = xdata[:minlen]
+        ydata = ydata[:minlen]
+        dx = np.diff(xdata)
+        dy = np.diff(ydata)
+        if not self._overlayAction.isChecked():
+            self._statePlotAxes.cla()
+        self._statePlotAxes.quiver(xdata[:-1], ydata[:-1], dx, dy, np.arange(len(dx)), cmap='viridis', angles='xy', scale_units='xy', scale=1)
         self._statePlotAxes.set_xlabel(sx)
         self._statePlotAxes.set_ylabel(sy)
         if sx == 'V':
@@ -576,6 +578,11 @@ class SquidGui( QMainWindow ):
             self._statePlotAxes.set_ylim(-20, 120)
         else:
             self._statePlotAxes.set_ylim(0, 1)
+        # Colorbar
+        sm = cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(0, self._runtime))
+        self._statePlotColorbarAxes.cla()
+        self._statePlotColorBar = self._statePlotFigure.colorbar(sm, cax=self._statePlotColorbarAxes, label='Time (ms)')
+        # Lower axis showing time course of m, h, and n
         self._activationParamAxes.set_xlim(0, self._runtime)
         self._activationParamAxes.set_ylim(0, 1.0)
         m = self.__get_stateplot_data('m')
