@@ -6,14 +6,15 @@
 # Maintainer:
 # Created: Wed Feb 22 23:24:21 2012 (+0530)
 # Version:
-# Last-Updated: Mon Mar 16 15:23:28 2026 (+0530)
+# Last-Updated: Wed May 13 13:48:08 2026 (+0530)
 #           By: Subhasis Ray
-#     Update #: 226
+#     Update #: 229
 # URL:
 # Keywords:
 # Compatibility:
 #
 #
+
 
 # Commentary:
 #
@@ -102,7 +103,6 @@ if __name__ == '__main__':
     else:
         demo.clamp_ckt.configure_pulses(baseLevel=0.0, firstDelay=10.0, firstLevel=SquidAxon.EREST_ACT, firstWidth=0.0, secondDelay=0.0, secondLevel=50.0+SquidAxon.EREST_ACT, secondWidth=20.0)
     demo.schedule(clamp_mode)
-
     demo.run(50.0)
     demo.save_data()
 

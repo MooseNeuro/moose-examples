@@ -4,7 +4,7 @@
 # Maintainer:  Dilawar Singh <dilawars@ncbs.res.in>
 # Created: Mon Jul  9 18:23:55 2012 (+0530)
 # Version:
-# Last-Updated: Sun Apr  5 13:05:48 2026 (+0530)
+# Last-Updated: Wed May 13 13:47:03 2026 (+0530)
 #       PyQt5 version
 
 import sys
