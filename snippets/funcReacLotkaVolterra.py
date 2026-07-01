@@ -30,8 +30,6 @@ def makeModel():
     x.nInit = 2.0
     y.nInit = 1.0
     z.nInit = 0.0
-    xrate.x.num = 1
-    yrate.x.num = 1
     xrate.expr = "x0 * " + str( beta ) + " - " + str( alpha )
     yrate.expr = str( gamma ) + " - x0 * " + str( delta )
     xreac.Kf = k

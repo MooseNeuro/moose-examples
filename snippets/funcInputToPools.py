@@ -41,8 +41,6 @@ def makeModel():
     # Assign parameters
     a.concInit = 0
     b.concInit = 1
-    #f1.numVars = 1
-    #f2.numVars = 1
     f1.expr = '1 + sin(t)'
     f2.expr = '10 * cos(t)'
 

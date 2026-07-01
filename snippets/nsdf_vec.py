@@ -6,23 +6,27 @@
 # Maintainer:
 # Created: Sat Dec 19 22:27:27 2015 (-0500)
 # Version:
-# Last-Updated: Thu Aug 11 11:09:33 2016 (-0400)
+# Last-Updated: Mon Jan 12 21:29:22 2026 (+0530)
 #           By: Subhasis Ray
-#     Update #: 135
+#     Update #: 172
 # URL:
 # Keywords:
 # Compatibility:
 #
+import os
 import numpy as np
 from datetime import datetime
 import getpass
+from matplotlib import pyplot as plt
+
 import moose
+
+
 try:
     a = moose.NSDFWriter( '/a' )
+    moose.delete(a)
 except Exception as e:
-    print( '[WARN] This build does not have NSDF support.' )
-    print( ' -- To build moose with NSDF support please see: \
-            https://github.com/BhallaLab/moose-core/blob/master/INSTALL.md' )
+    print( '[WARN] This build does not have NSDF support.')
     quit()
 
 try:
@@ -30,8 +34,6 @@ try:
 except ImportError as e:
     print( 'No module h5py. Please install it using pip' )
     quit()
-
-from matplotlib import pyplot as plt
 
 
 def write_nsdf():
@@ -48,7 +50,9 @@ def write_nsdf():
     spikegen = moose.SpikeGen('/model/t_lead', elements)
     nsdf = moose.NSDFWriter('/model/writer')
     nsdf.filename = 'nsdf_vec_demo.h5'
-    nsdf.mode = 2 #overwrite existing file
+    if os.path.exists(nsdf.filename):
+        raise RuntimeError(f'File {nsdf.filename} already exists. Delete or rename it and try again.')
+    nsdf.mode = 2    # overwrite existing file
     # nsdf.eventInput.num = elements
     nsdf.flushLimit = 100
     for ii in range(elements):
@@ -67,13 +71,12 @@ def write_nsdf():
         # tab = moose.Table('spiketab_{}'.format(ii))
         # tab.threshold = t_lead.threshold
         # moose.connect(pulse, 'output', tab, 'spike')
-    clock = moose.element('/clock')
-    for ii in range(32):
-        moose.setClock(ii, dt)
-    print(('Starting simulation at:', datetime.now().isoformat()))
+    # clock = moose.element('/clock')
+    # for ii in range(32):
+    #     moose.setClock(ii, dt)
+    # print(('Starting simulation at:', datetime.now().isoformat()))
     moose.reinit()
     moose.start(simtime)
-    print(('Finished simulation at:', datetime.now().isoformat()))
     ###################################
     # Set the environment attributes
     ###################################
@@ -84,7 +87,7 @@ use a SpikeGen to detect the threshold crossing events of rising
 edges. We store the pulsegen output as Uniform data and the threshold
 crossing times as Event data. '''
     nsdf.stringAttr['creator'] = getpass.getuser()
-    nsdf.stringVecAttr['software'] = ['python2.7', 'moose3' ]
+    nsdf.stringVecAttr['software'] = ['python3', 'moose4' ]
     nsdf.stringVecAttr['method'] = ['']
     nsdf.stringAttr['rights'] = ''
     nsdf.stringAttr['license'] = 'CC-BY-NC'
@@ -95,12 +98,14 @@ crossing times as Event data. '''
     print('Closing nsdf handle')
     nsdf.close() #explicitly close the file so we do not interfere with h5py
     print('Closed nsdf handle')
+
+
     with h5.File(nsdf.filename, 'a') as fd:
-        static = fd.create_group('/data/static')
-        static_pg = static.create_group(pulsegen.className)
+        static = fd.get('/data/static')
+        static_pg = static.get(pulsegen.className)
         pulse_info = static_pg.create_dataset('pulse_0', (elements,), dtype=np.dtype([('delay', 'float64'), ('level', 'float64'), ('width','float64')]))
-        map_ = fd.create_group('/map/static')
-        map_pg = map_.create_group(pulsegen.className)
+        map_ = fd.get('/map/static')
+        map_pg = map_.get(pulsegen.className)
         map_pulse = map_pg.create_dataset('pulse_0', (elements,), dtype=h5.special_dtype(vlen=str))
         for ii in range(elements):
             pulse_info['delay', ii] = pulsegen.vec[ii].delay[0]
@@ -110,6 +115,7 @@ crossing times as Event data. '''
         #TODO: connect this as a dimension scale on pulse_info
 
     return nsdf.filename
+
 
 def read_nsdf(fname):
     """Read the specific file we created in this example.
@@ -123,15 +129,16 @@ def read_nsdf(fname):
     with h5.File(fname, 'r') as fd:
         pulse_data = fd['/data/uniform/PulseGen/outputValue']
         pulse_src = fd['/map/uniform/PulseGen/outputValue']
+        fig, axes = plt.subplots(nrows=len(pulse_src), ncols=1, sharex='all', sharey='all')
         for ii in range(len(pulse_src)):
             source = pulse_src[ii]
             data = pulse_data[ii, :]
             dt = pulse_data.attrs['dt']
-            plt.figure(source)
             ts = np.arange(len(data)) * dt
-            plt.plot(ts, data)
-            plt.suptitle(source)
+            axes[ii].plot(ts, data, label=source.decode())
+            axes[ii].legend()
     plt.show()
+
 
 def main():
     """
@@ -153,7 +160,10 @@ http://nsdf.readthedocs.org/en/latest/
 
     """
     fname = write_nsdf()
+    print('Saved nsdf data in', fname)
     read_nsdf(fname)
+    print('Finished reading', fname)
+
 
 if __name__ == '__main__':
     main()

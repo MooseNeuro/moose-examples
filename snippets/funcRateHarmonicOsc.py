@@ -24,8 +24,6 @@ def makeModel():
     k = 0.1
     p.nInit = offset1
     v.nInit = offset2 + 0.1
-    pdot.x.num = 1
-    vdot.x.num = 1
     pdot.expr = "x0 - " + str( offset1 )
     vdot.expr = "-" + str( k ) + " * (x0 - " + str( offset2 ) + ")"
 
@@ -61,8 +59,8 @@ def main():
     where the rates for Pools p and v are computed using Functions.
     Note the use of offsets. This is because MOOSE chemical
     systems cannot have negative concentrations.
-    
-    The model is set up to run using default Exponential Euler 
+
+    The model is set up to run using default Exponential Euler
     integration, and then using the GSL deterministic solver.
     """
     makeModel()

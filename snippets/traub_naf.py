@@ -6,9 +6,9 @@
 # Maintainer:
 # Created: Mon Apr 29 21:07:30 2013 (+0530)
 # Version:
-# Last-Updated: Mon May  6 18:50:14 2013 (+0530)
-#           By: subha
-#     Update #: 436
+# Last-Updated: Mon Jan 12 21:51:21 2026 (+0530)
+#           By: Subhasis Ray
+#     Update #: 442
 # URL:
 # Keywords:
 # Compatibility:
@@ -99,10 +99,18 @@ def create_naf_proto():
     mgate = moose.element('%s/gateX' % (channel.path))
     mgate.tableA = inf_m / tau_m
     mgate.tableB = 1 / tau_m
+    # Set the ranges for interpolation
+    mgate.min = -120e-3
+    mgate.max = 40e-3
+    mgate.divs = 300
     channel.Ypower = 1 # Creates h-gate
     hgate = moose.element('%s/gateY' % (channel.path))
     hgate.tableA = inf_h / tau_h
     hgate.tableB = 1 / tau_h
+    # Set the ranges for interpolation
+    hgate.min = -120e-3
+    hgate.max = 40e-3
+    hgate.divs = 300
     return channel
 
 def create_compartment(parent_path, name):
