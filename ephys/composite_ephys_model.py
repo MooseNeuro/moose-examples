@@ -61,9 +61,10 @@ for comp in moose.wildcardFind(f'{result.root.path}/##[TYPE=Compartment]'):
     comp.Em = EL
     comp.initVm = EL
 
-# mplt.plotMorphologyGraph(result.root)
-# plt.show()
+mplt.plotMorphologyGraph(result.root)
+plt.show()
 
+# ============== Insert ion channels =========================
 # Conductances are given as densities (S/m^2) times compartment surface area.
 naf_list = chan.load(f'{model.path}/##[TYPE=Compartment]',
                      icg_id=1684,
@@ -79,7 +80,7 @@ pg = moose.PulseGen(f'{model.path}/pg')
 moose.connect(pg, 'output', soma, 'injectMsg')
 
 
-# Recording tables
+# =============== Setup recording tables =====================
 vm_tabs = []
 for comp in moose.wildcardFind(f'{result.root.path}/#[TYPE=Compartment]'):
     print(comp.path)
@@ -90,12 +91,14 @@ for comp in moose.wildcardFind(f'{result.root.path}/#[TYPE=Compartment]'):
 inject_tab = moose.Table(f'{model.path}/Inject_soma')
 moose.connect(inject_tab, 'requestOut', pg, 'getOutputValue')
 
-# Current injection protocol
+# ========= Current injection protocol ==================
 pg.firstDelay = 20e-3
 pg.firstWidth = 100e-3
 pg.firstLevel = 0.2e-9
 pg.secondDelay = 1e9
 
+# HSolve to handle the stiff system, which requires very small
+# integration time step
 if USE_HSOLVE:
     solver = moose.HSolve(f'{model.path}/solver')
     solver.target = soma.path
@@ -104,21 +107,22 @@ else:
     for ii in range(10):
         moose.setClock(ii, DT)
 
+# ========== Initialize the model and simulate ============
 moose.reinit()
 
 simtime = 150e-3
 moose.start(simtime)
 
+# ===================== Plot data =========================
 for tab in vm_tabs:
     t = np.linspace(0, simtime * 1e3, len(tab.vector))
     plt.plot(t, tab.vector * 1e3)
-    print('NaN?', np.isnan(tab.vector).any())
-    # break
 
 plt.plot(t, inject_tab.vector * 1e10 + tab.vector.min() * 1e3, label='Injected current')
 plt.xlabel('Time (ms)')
 plt.ylabel('Vm (mV)')
 plt.legend()
 plt.show()
+
 #
 # composite_ephys_model.py ends here
