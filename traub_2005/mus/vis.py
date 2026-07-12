@@ -164,20 +164,27 @@ def get_lut(spec, n_values=256, vmin=-100e-3, vmax=0.0):
 
 
 def set_vis_attrs(graph, cell_counts=cell_counts, spec=cell_vis_spec):
-    """Assign position to cells in graph"""
+    """Assign a 3D position, glyph and color to every cell in `graph`.
+
+    Cells are laid out in a cylindrical shell per cell type using the
+    depth range and diameter from `spec`. The number of cells of each
+    type is taken from the graph itself so this works regardless of the
+    scale the network was built at.
+    """
     graph.vs['color'] = [(0, 0, 0)] * len(graph.vs)
-    for celltype, num in cell_counts.items():
+    for celltype in spec:
+        vs = graph.vs.select(celltype_eq=celltype)
+        num = len(vs)
+        if num == 0:
+            continue
         rpos = np.random.uniform(low=0, high=1.0, size=num) * spec[celltype]['dia'] / 2.0
         theta = np.random.uniform(low=0, high=2 * np.pi, size=num)
         xpos = rpos * np.cos(theta)
         ypos = rpos * np.sin(theta)
         zpos = -np.random.uniform(low=spec[celltype]['top'], high=spec[celltype]['bottom'], size=num)
-        vs = graph.vs.select(lambda v: v['name'].startswith(celltype))
         vs['pos'] = np.column_stack((xpos, ypos, zpos))
         vs['glyph'] = spec[celltype]['glyph']
-        vs['color'] = [spec[celltype]['color']] * len(vs)
-        print('#' * 10, vs['color'])
-
+        vs['color'] = [spec[celltype]['color']] * num
     return graph
 
 
@@ -188,19 +195,24 @@ def display_network(
     and edges, synapses."""
     tstart = time.perf_counter()
     set_vis_attrs(graph, cell_counts=cell_counts, spec=celltype_attr)
-    # print(graph.vs['color'])
-    edge_mesh = pv.PolyData(graph.vs['pos'])
+    positions = np.array(graph.vs['pos'])
+    edge_mesh = pv.PolyData(positions)
     edge_mesh['color'] = graph.vs['color']
     edge_list = graph.get_edgelist()
-    edge_mesh.lines = np.array([(2, edge[0], edge[1]) for edge in edge_list])
+    if edge_list:
+        edge_mesh.lines = np.array(
+            [(2, edge[0], edge[1]) for edge in edge_list]
+        )
     plotter = pv.Plotter()
     # plotter.add_mesh(edge_mesh, scalars=np.array(graph.vs['color']), rgb=True, opacity=0.1)
     glyph_actors = {}
     for celltype, vinfo in celltype_attr.items():
-        glyph_name, color = vinfo[3], vinfo[4]
+        glyph_name, color = vinfo['glyph'], vinfo['color']
         mesh = glyph_meshes[glyph_name]
-        vs = graph.vs.select(lambda v: v['celltype'] == celltype)
-        glyphs = pv.PolyData(vs['pos']).glyph(
+        vs = graph.vs.select(celltype_eq=celltype)
+        if len(vs) == 0:
+            continue
+        glyphs = pv.PolyData(np.array(vs['pos'])).glyph(
             scale=False, factor=10, geom=mesh
         )
         actor = plotter.add_mesh(glyphs, color=color, opacity=1.0)
@@ -210,6 +222,7 @@ def display_network(
     plotter.camera_position = [
         (0.0, 500.0, -1200.0),  # position
         (0.0, 0.0, -1200.0),  # focal point
+        (0.0, 1.0, 0.0),  # view-up vector, Y is up
     ]
     plotter.reset_camera()
 

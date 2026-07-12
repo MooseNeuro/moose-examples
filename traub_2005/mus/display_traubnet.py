@@ -19,6 +19,7 @@ if __name__ == '__main__':
             cell_counts=cell_counts,
             connection_spec=connection_spec,
             model_root=model_root,
+            scale=1.0,
         )
         graph = adapter.model_to_graph(model_root)
         print(graph)

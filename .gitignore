@@ -68,3 +68,7 @@ _travis
 *.bak
 *~
 *.h5
+# Generated conversion / simulation outputs
+*__flattened.xml
+*condensed.swc
+snippets/nsdf.txt

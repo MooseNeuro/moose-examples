@@ -37,20 +37,20 @@ orig_cell_counts = {
 #: number of cells of each type
 #: modify this to reduce model size
 cell_counts = {
-    'SupPyrRS': 1000,
-    'SupPyrFRB': 50,
-    'SupBasket': 90,
-    'SupAxoaxonic': 90,
-    'SupLTS': 90,
-    'SpinyStellate': 240,
-    'TuftedIB': 800,
-    'TuftedRS': 200,
-    'DeepBasket': 100,
-    'DeepAxoaxonic': 100,
-    'DeepLTS': 100,
-    'NontuftedRS': 500,
-    'TCR': 100,
-    'nRT': 100,
+    'SupPyrRS': 100,
+    'SupPyrFRB': 5,
+    'SupBasket': 9,
+    'SupAxoaxonic': 9,
+    'SupLTS': 9,
+    'SpinyStellate': 24,
+    'TuftedIB': 80,
+    'TuftedRS': 20,
+    'DeepBasket': 10,
+    'DeepAxoaxonic': 10,
+    'DeepLTS': 10,
+    'NontuftedRS': 50,
+    'TCR': 10,
+    'nRT': 10,
 }
 
 # fmt: off
@@ -975,10 +975,82 @@ def create_neuron_populations(cell_counts, model_root='/model', scale=0.1):
             moose.copy(proto, model_root, f'{name}_{ii:03d}')
             for ii in range(int(scale * count))
         ]
-        logger.info(f'{name}: Created {count} copies')
+        logger.info(f'{name}: Created {len(populations[name])} copies')
     tend = time.perf_counter()
     logger.info(f'Finished creating neuron populations in {tend - tstart} s')
     return populations
+
+
+#: Presynaptic cell types that release GABA (inhibitory synapses). All
+#: other presynaptic types are glutamatergic (excitatory).
+GABAERGIC_TYPES = {
+    'SupBasket',
+    'SupAxoaxonic',
+    'SupLTS',
+    'DeepBasket',
+    'DeepAxoaxonic',
+    'DeepLTS',
+    'nRT',
+}
+
+#: Reversal potential (V) of GABA_A synapses on each postsynaptic cell
+#: type. Values taken from the single-cell reference implementation
+#: (py/cells.py): -81 mV on pyramidal and TCR cells, -75 mV elsewhere
+#: (Sanchez-Vives et al. 1997).
+EGABA = {
+    'SupPyrRS': -81e-3,
+    'SupPyrFRB': -81e-3,
+    'TCR': -81e-3,
+    'SupLTS': -75e-3,
+    'SupAxoaxonic': -75e-3,
+    'SupBasket': -75e-3,
+    'SpinyStellate': -75e-3,
+    'NontuftedRS': -75e-3,
+    'TuftedIB': -75e-3,
+    'TuftedRS': -75e-3,
+    'DeepBasket': -75e-3,
+    'DeepAxoaxonic': -75e-3,
+    'DeepLTS': -75e-3,
+    'nRT': -75e-3,
+}
+
+#: Reversal potential (V) of glutamatergic (AMPA-like) synapses.
+E_GLU = 0.0
+
+#: Bi-exponential conductance time course (s) for the MOOSE SynChan,
+#: g(t) ~ exp(-t/tau1) - exp(-t/tau2) with tau1 the decay and tau2 the
+#: rise time constant. Representative fast-receptor kinetics; the
+#: excitatory pathway is modelled as lumped AMPA.
+SYN_TAU = {
+    'exc': (2.0e-3, 0.5e-3),  # AMPA-like
+    'inh': (7.0e-3, 1.0e-3),  # GABA_A-like
+}
+
+#: Default peak synaptic conductance (S). PLACEHOLDER: the Traub et al.,
+#: 2005 per-connection conductance table is not bundled with this
+#: repository (it requires the full NEURON model), so calibrate this
+#: against the paper before drawing quantitative conclusions.
+DEFAULT_GSYN = 1e-9
+
+
+def set_synchan_params(synchan, pre_type, post_type):
+    """Configure a SynChan's reversal potential, kinetics and peak
+    conductance from the pre- and post-synaptic cell types.
+
+    Presynaptic interneurons (see `GABAERGIC_TYPES`) form inhibitory
+    GABA_A synapses whose reversal potential depends on the
+    postsynaptic cell type; all other presynaptic cells form excitatory
+    (AMPA-like) synapses.
+    """
+    if pre_type in GABAERGIC_TYPES:
+        synchan.Ek = EGABA.get(post_type, -75e-3)
+        tau1, tau2 = SYN_TAU['inh']
+    else:
+        synchan.Ek = E_GLU
+        tau1, tau2 = SYN_TAU['exc']
+    synchan.tau1 = tau1
+    synchan.tau2 = tau2
+    synchan.Gbar = DEFAULT_GSYN
 
 
 def connect_populations(connspec, population_dict, rng=rng):
@@ -1023,7 +1095,12 @@ def connect_populations(connspec, population_dict, rng=rng):
                         synchan = moose.element(synchan_path)
                     except:
                         synchan = moose.SynChan(synchan_path)
-                        # TODO: set synchan properties
+                        set_synchan_params(synchan, pre_type, post_type)
+                        # Wire the synchan into the compartment so its
+                        # conductance actually drives Vm.
+                        moose.connect(
+                            post_comp, 'channel', synchan, 'channel'
+                        )
                         synhandler = moose.SimpleSynHandler(
                             f'{synchan_path}/synh'
                         )
@@ -1046,18 +1123,18 @@ def connect_populations(connspec, population_dict, rng=rng):
             logger.debug(
                 f'Connected {pre_type} population {post_type} in {tend - tstart} s'
             )
-    logger.debug('Total time to setup connections', ttot, 's')
+    logger.info(f'Total time to setup connections {ttot} s')
 
 
-def make_net(cell_counts, connection_spec, model_root='/model'):
-    populations = create_neuron_populations(cell_counts, model_root=model_root)
+def make_net(cell_counts, connection_spec, model_root='/model', scale=0.1):
+    populations = create_neuron_populations(cell_counts, model_root=model_root, scale=scale)
     connect_populations(connection_spec, populations)
     return moose.element(model_root)
 
 
 if __name__ == '__main__':
     model_root = '/model'
-    make_net(cell_counts, connection_spec, model_root)
+    make_net(cell_counts, connection_spec, model_root, scale=1.0)
 
 #
 # cortical_column.py ends here
