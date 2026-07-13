@@ -29,28 +29,27 @@ from matplotlib import colormaps
 norm = Normalize(vmin=-100e-3, vmax=0.0)
 
 
-def make_star(outer=16, inner=6, points=5, depth=8):
-    """Return a solid `points`-pointed star glyph.
+def make_star(radius=14):
+    """Return a solid 3D star glyph.
 
-    The star face lies in the x-z plane (the screen plane of the default
-    camera, which looks along -y), so it reads as a star from the front
-    rather than edge-on, and is extruded along y to give it thickness.
+    It is a compound of two tetrahedra rotated 90 deg relative to each
+    other (a stella octangula), so it has spikes in many directions and
+    reads as a star from most viewpoints. The compound is oriented so a
+    three-fold axis points along +y (the default camera looks along -y),
+    which shows a clean six-pointed star from the front.
     """
-    ang = np.pi / 2 + np.linspace(0, 2 * np.pi, 2 * points, endpoint=False)
-    r = np.empty(2 * points)
-    r[0::2] = outer
-    r[1::2] = inner
-    pts = np.column_stack(
-        [r * np.cos(ang), np.zeros(2 * points), r * np.sin(ang)]
-    )
-    center = len(pts)
-    pts = np.vstack([pts, [0, 0, 0]])
-    # fan the (non-convex) star from its center so it fills correctly
-    faces = np.hstack(
-        [[3, i, (i + 1) % (2 * points), center] for i in range(2 * points)]
-    )
-    flat = pv.PolyData(pts, faces=faces)
-    return flat.extrude((0, depth, 0), capping=True).triangulate()
+    t1 = pv.Tetrahedron(radius=radius)
+    t2 = pv.Tetrahedron(radius=radius).rotate_z(90, inplace=False)
+    star = t1.merge(t2).triangulate()
+    # Align a tetrahedron vertex (a three-fold axis) with +y.
+    v = np.array([1.0, 1.0, 1.0])
+    v /= np.linalg.norm(v)
+    target = np.array([0.0, 1.0, 0.0])
+    axis = np.cross(v, target)
+    if np.linalg.norm(axis) > 1e-9:
+        angle = float(np.degrees(np.arccos(np.clip(v @ target, -1.0, 1.0))))
+        star = star.rotate_vector(axis / np.linalg.norm(axis), angle, inplace=False)
+    return star
 
 
 glyph_meshes = {
