@@ -25,7 +25,7 @@ if __name__ == '__main__':
         print(graph)
         vis.display_network(graph)
     else:
-        vis.display_data(sys.argv[1])
+        vis.display_activity(sys.argv[1])
 
 #
 # display_traubnet.py ends here

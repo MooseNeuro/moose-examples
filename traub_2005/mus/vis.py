@@ -8,6 +8,7 @@
 
 # Code:
 """Functions for visualizing a neuronal network"""
+import colorsys
 import igraph as ig
 import pyvista as pv
 import numpy as np
@@ -16,7 +17,13 @@ from collections import defaultdict
 import moose
 from cortical_column import cell_counts
 import adapter
-from matplotlib.colors import LinearSegmentedColormap, ListedColormap, Normalize
+from matplotlib.colors import (
+    LinearSegmentedColormap,
+    ListedColormap,
+    Normalize,
+    to_rgb,
+)
+from matplotlib import colormaps
 
 
 norm = Normalize(vmin=-100e-3, vmax=0.0)
@@ -266,7 +273,7 @@ def display_data(datafile, celltype_attr=cell_vis_spec, vmin=-100e-3, vmax=0):
         print('Step', step, 'Time', t)
         for cell_name, vm in newdata.items():
             celltype = cell_name.partition('_')[0]
-            v = min(255, int(255 * (vm - vmin) / (vmax - vmin)))
+            v = max(0, min(255, int(255 * (vm - vmin) / (vmax - vmin))))
             color = f'{celltype_attr[celltype]["color"]}{v:02x}'
             actor = glyph_actors[cell_name]
             actor.prop.color = color
@@ -348,9 +355,192 @@ def display_data_2(
     plotter.show()
 
 
+def display_activity(
+    datafile,
+    celltype_attr=cell_vis_spec,
+    field='Vm',
+    vmin=-100e-3,
+    vmax=40e-3,
+    window=50e-3,
+    gamma=0.6,
+    interval=20,
+):
+    """Animate network activity from a recorded NSDF file.
+
+    Each cell type keeps its own hue (the same color used for its trace
+    in the right panel); the membrane potential (`field`) modulates the
+    brightness of that hue, so a glyph brightens as its cell
+    depolarizes. The brightness is `norm(Vm) ** gamma` (a smaller
+    `gamma` lifts sub-threshold activity into view) mapped over the
+    range [`vmin`, `vmax`]. The right panel shows one scrolling Vm trace
+    per cell type, stacked top-to-bottom by cortical depth and advancing
+    right-to-left over the most recent `window` seconds.
+
+    `interval` is the timer period in milliseconds between animation
+    frames.
+    """
+    data = adapter.get_data(datafile, field=field)
+    t0, frame0 = next(data)
+    t1, frame1 = next(data)
+    dt = (t1 - t0) if t1 > t0 else 1.0
+    buflen = max(2, int(round(window / dt)))
+
+    # Lay the recorded cells out by type
+    graph = ig.Graph(directed=True)
+    counts = defaultdict(int)
+    for cell_name in frame0:
+        celltype = cell_name.partition('_')[0]
+        graph.add_vertex(name=cell_name, celltype=celltype)
+        counts[celltype] += 1
+    set_vis_attrs(graph, cell_counts=counts, spec=celltype_attr)
+
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    # Hue and saturation of each cell type's base color; Vm sets the
+    # value (brightness). A floor keeps resting cells faintly visible.
+    bright_floor = 0.12
+    base_hs = {
+        ct: colorsys.rgb_to_hsv(*to_rgb(spec['color']))[:2]
+        for ct, spec in celltype_attr.items()
+    }
+
+    def vm_to_rgb(celltype, vm):
+        nvm = float(min(1.0, max(0.0, norm(vm))))
+        bright = bright_floor + (1.0 - bright_floor) * (nvm ** gamma)
+        hue, sat = base_hs[celltype]
+        return colorsys.hsv_to_rgb(hue, sat, bright)
+
+    plotter = pv.Plotter(shape=(1, 2))
+
+    # ---- Left panel: 3D glyphs, hue per type and brightness by Vm ----
+    plotter.subplot(0, 0)
+    glyph_actors = {}
+    for celltype in celltype_attr:
+        vs = graph.vs.select(celltype_eq=celltype)
+        if len(vs) == 0:
+            continue
+        mesh = glyph_meshes[celltype_attr[celltype]['glyph']]
+        for vertex in vs:
+            actor = plotter.add_mesh(
+                mesh.copy().translate(vertex['pos']),
+                color=vm_to_rgb(celltype, frame0[vertex['name']]),
+            )
+            glyph_actors[vertex['name']] = actor
+    # A zero-opacity grayscale reference to draw a brightness (Vm) bar
+    ref = pv.PolyData(np.zeros((2, 3)))
+    ref[field] = np.array([vmin, vmax])
+    plotter.add_mesh(
+        ref,
+        scalars=field,
+        cmap='gray',
+        clim=[vmin, vmax],
+        opacity=0.0,
+        show_scalar_bar=True,
+        scalar_bar_args={'title': f'{field} (V)', 'color': 'white'},
+    )
+    plotter.set_background('black')
+    plotter.camera_position = [
+        (0.0, 500.0, -1200.0),
+        (0.0, 0.0, -1200.0),
+        (0.0, 1.0, 0.0),
+    ]
+    plotter.reset_camera()
+
+    # ---- Right panel: one scrolling Vm axis per cell type, stacked
+    # top-to-bottom in order of cortical depth ----
+    plotter.subplot(0, 1)
+    # one representative cell per type
+    reps = {}
+    for cell_name in frame0:
+        celltype = cell_name.partition('_')[0]
+        if celltype not in reps:
+            reps[celltype] = cell_name
+    # order most-superficial (smallest depth) first, so it sits on top
+    ordered = sorted(reps.items(), key=lambda kv: celltype_attr[kv[0]]['top'])
+    n = len(ordered)
+    slot = 0.98 / n
+    times = []
+    traces = {}
+    lines = {}
+    charts = []
+    for i, (celltype, cell_name) in enumerate(ordered):
+        chart = pv.Chart2D()
+        chart.size = (0.94, slot * 0.86)
+        # i == 0 is the most superficial layer -> highest on screen
+        chart.loc = (0.02, 0.01 + (n - 1 - i) * slot)
+        chart.y_range = [vmin, vmax]
+        chart.y_label = celltype
+        chart.y_axis.tick_labels_visible = False
+        if i < n - 1:
+            # only the bottom-most axis carries the shared time scale
+            chart.x_axis.tick_labels_visible = False
+            chart.x_axis.label = ''
+        else:
+            chart.x_axis.label = 'Time (s)'
+        # Make axis lines, labels and tick labels visible on the dark
+        # background; keep the type label small so 14 stacked rows do
+        # not crowd
+        chart.y_axis.label_size = 12
+        for axis in (chart.x_axis, chart.y_axis):
+            axis.pen.color = 'white'
+            axis.GetTitleProperties().SetColor(1, 1, 1)
+            axis.GetLabelProperties().SetColor(1, 1, 1)
+        traces[cell_name] = []
+        lines[cell_name] = chart.line(
+            [t0, t1],
+            [frame0[cell_name], frame1[cell_name]],
+            color=celltype_attr[celltype]['color'],
+            width=2.0,
+        )
+        charts.append(chart)
+        plotter.add_chart(chart)
+
+    # Seed the rolling buffers with the two frames already read
+    for t, frame in ((t0, frame0), (t1, frame1)):
+        times.append(t)
+        for cell_name in traces:
+            traces[cell_name].append(frame.get(cell_name, np.nan))
+
+    def _refresh():
+        window_t = [times[-1] - window, times[-1]]
+        for cell_name, line in lines.items():
+            line.update(list(times), traces[cell_name])
+        for chart in charts:
+            chart.x_range = window_t
+
+    _refresh()
+
+    def update(step):
+        try:
+            t, frame = next(data)
+        except StopIteration:
+            return
+        for cell_name, vm in frame.items():
+            actor = glyph_actors.get(cell_name)
+            if actor is not None:
+                actor.prop.color = vm_to_rgb(cell_name.partition('_')[0], vm)
+        times.append(t)
+        if len(times) > buflen:
+            del times[0]
+        for cell_name in reps.values():
+            traces[cell_name].append(frame.get(cell_name, np.nan))
+            if len(traces[cell_name]) > buflen:
+                del traces[cell_name][0]
+        _refresh()
+        plotter.render()
+
+    plotter.iren.initialize()
+    plotter.add_timer_event(max_steps=10_000_000, duration=interval, callback=update)
+    plotter.show()
+
+
 if __name__ == '__main__':
-    fpath = '../../../traub_2005_full/dataviz/test_data/data_20111025_115951_4849.h5'
-    display_data_2(fpath)
+    import sys
+
+    if len(sys.argv) > 1:
+        display_activity(sys.argv[1])
+    else:
+        fpath = '../../../traub_2005_full/dataviz/test_data/data_20111025_115951_4849.h5'
+        display_data_2(fpath)
 
 #
 # vis.py ends here

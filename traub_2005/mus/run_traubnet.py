@@ -12,6 +12,7 @@ import sys
 import time
 import numpy as np
 from collections import defaultdict
+import h5py
 import matplotlib.pyplot as plt
 import moose
 import cells
@@ -55,13 +56,59 @@ def setup_data_recording(model_root, vm_frac=0.1):
     return (spike_dict, Vm_dict)
 
 
+def dump_data(filename, spike_dict, Vm_dict):
+    """Write the recorded data to `filename` in NSDF (HDF5) layout so
+    the visualization code (`vis.display_data` via
+    `adapter.get_data`/`get_spike_vm`) can replay it.
+
+    Somatic Vm is written as uniformly-sampled data under
+    ``/data/uniform/<celltype>/Vm`` (one row per recorded cell) with the
+    corresponding cell names in ``/map/uniform/<celltype>/Vm``. Spike
+    trains are written as event data under
+    ``/data/event/<celltype>/spike/<cell name>``.
+    """
+    str_dt = h5py.string_dtype(encoding='utf-8')
+    with h5py.File(filename, 'w') as fd:
+        # Uniformly sampled somatic Vm
+        for celltype, tables in Vm_dict.items():
+            if len(tables) == 0:
+                continue
+            names = list(tables.keys())
+            traces = [np.asarray(tables[name].vector) for name in names]
+            # guard against off-by-one differences in trace length
+            length = min(len(tr) for tr in traces)
+            data = np.vstack([tr[:length] for tr in traces])
+            dt = tables[names[0]].dt
+            dset = fd.create_dataset(
+                f'/data/uniform/{celltype}/Vm', data=data
+            )
+            dset.attrs['dt'] = dt
+            dset.attrs['field'] = 'Vm'
+            fd.create_dataset(
+                f'/map/uniform/{celltype}/Vm',
+                data=np.array(names, dtype=str_dt),
+            )
+            fd.attrs['dt'] = dt
+        # Event (spike) data
+        for celltype, tables in spike_dict.items():
+            for name, table in tables.items():
+                fd.create_dataset(
+                    f'/data/event/{celltype}/spike/{name}',
+                    data=np.asarray(table.vector),
+                )
+    print(f'Wrote recorded data to {filename}')
+
+
 if __name__ == '__main__':
     runtime = 200e-3
     scale = 1.0
+    outfile = 'traubnet_data.h5'
     if len(sys.argv) > 1:
         runtime = float(sys.argv[1])
     if len(sys.argv) > 2:
         scale = float(sys.argv[2])
+    if len(sys.argv) > 3:
+        outfile = sys.argv[3]
     model_root = cort.make_net(cort.cell_counts, cort.connection_spec, '/model', scale=scale)
     spike_dict, Vm_dict = setup_data_recording(model_root.path, vm_frac=0.1)
     moose.reinit()
@@ -69,6 +116,7 @@ if __name__ == '__main__':
     moose.start(runtime)
     te = time.perf_counter()
     print(f'Completed {runtime} s of simulation in {(te - ts)} s')
+    dump_data(outfile, spike_dict, Vm_dict)
     fig, axes = plt.subplots(nrows=2, ncols=1, sharex='all')
     for celltype in Vm_dict:
         for cell, Vm in Vm_dict[celltype].items():
