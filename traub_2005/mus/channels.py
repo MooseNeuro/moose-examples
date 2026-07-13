@@ -21,7 +21,7 @@ CMIN = 0
 CMAX = 1e3
 CDIVS = 3000
 
-E_AR = -35e03
+E_AR = -35e-3
 E_Ca = 125e-3
 E_K = -95e-3
 E_K_FS = -100e-3
@@ -217,7 +217,7 @@ channel_spec = {
         'Ek': E_K,
         'Zpower': 1,
         'Z': 0.0,
-        'mstring': ('addmsg1', '../CaPool concOut . concen'),
+        'Mstring': ('addmsg1', '../CaPool concOut . concen'),
         'gateZ': {
             'alphaExpr': 'if (c < 100.0, 0.1 * c, 10.0)',
             'betaExpr': '10.0',
@@ -227,7 +227,7 @@ channel_spec = {
         'Ek': E_K,
         'Zpower': 1,
         'Z': 0.0,
-        'mstring': ('addmsg1', '../CaPool concOut . concen'),
+        'Mstring': ('addmsg1', '../CaPool concOut . concen'),
         'gateZ': {
             'alphaExpr': 'if (c < 500.0, 1e3 * c / 50000, 10.0)',
             'betaExpr': '1.0',
@@ -237,7 +237,7 @@ channel_spec = {
         'Ek': E_K,
         'Zpower': 1,
         'Z': 0.0,
-        'mstring': ('addmsg1', '../CaPool concOut . concen'),
+        'Mstring': ('addmsg1', '../CaPool concOut . concen'),
         'gateZ': {
             'alphaExpr': 'if (c < 100.0, 0.1 * c, 10.0)',
             'betaExpr': '1.0',
@@ -536,8 +536,7 @@ def get_channel(name, spec, parent='/library'):
     return chan
 
 
-def get_capool(parent='/library'):
-    name = 'CaPool'
+def get_capool(name='CaPool', parent='/library'):
     capool = get_proto(name, parent)
     if capool is None:
         path = f'{parent}/{name}'
@@ -566,7 +565,15 @@ def init_channels(libpath='/library'):
             raise
 
     channels['CaPool'] = get_capool(parent=libpath)
-    channels['spike'] = moose.SpikeGen(f'{libpath}/spike')
+    spike = moose.SpikeGen(f'{libpath}/spike')
+    # Axonal spike detection: fire on 0 mV overshoot, with a refractory
+    # period so one action potential yields one output spike. Matches
+    # the original Traub 2005 FORTRAN (threshold 0, axon_refrac_time =
+    # 1.5 ms).
+    spike.threshold = 0.0
+    spike.edgeTriggered = True
+    spike.refractT = 1.5e-3
+    channels['spike'] = spike
     te = time.perf_counter()
     logger.debug(f'Finished initializing channels in {te - ts} seconds.')
     return channels

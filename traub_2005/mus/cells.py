@@ -11,10 +11,12 @@
 
 import os
 import numpy as np
-import pandas as pd
+import csv
 import time
-import moose
+from collections import defaultdict
 from config import logger
+
+import moose
 
 
 from channels import get_proto, init_channels
@@ -221,29 +223,32 @@ cell_spec = {
 
 def assign_depths(proto, cell_spec, protodir='proto'):
     """Assign depth information to compartments"""
-    fdepth = cell_spec.get('depth')
+    fdepth = cell_spec.get('depths')
     flevels = cell_spec.get('levels')
     if fdepth is None:
         return
     dfile = cell_spec.get('depths')
     lfile = cell_spec.get('levels')
-    if (dfile is not None) and (lfile is not None):
-        depths = pd.read_csv(
-            os.path.join(protodir, dfile),
-            sep='\s+',
-            names=['level', 'depth'],
-            dtype={'level': np.int32, 'depth': np.float64},
-        ).to_dict()
-        levels = pd.read_csv(
-            os.path.join(protodir, lfile),
-            sep='\s+',
-            names=['num', 'level'],
-            dtype={'num': np.int32, 'level': np.int32},
-        ).to_dict()
-        for num, level in levels.items():
-            depth = depths[level]
-            comp = moose.element(f'{proto.path}/comp_{num}')
-            comp.z = depth
+    level_depth = {}
+    if dfile is not None:
+        with open(os.path.join(protodir, dfile), 'r') as dfd:
+            for line in dfd:
+                trimmed = line.strip()
+                if trimmed:
+                    level, depth = trimmed.split()
+                    level_depth[int(level)] = float(depth)
+    if lfile is None:
+        return
+
+    with open(os.path.join(protodir, lfile), 'r') as lfd:
+        for line in lfd:
+            trimmed = line.strip()
+            if trimmed:
+                num, level = map(int, trimmed.split())
+                level_map[proto.name][f'comp_{num}'] = level
+                if level in level_depth:
+                    comp = moose.element(f'{proto.path}/comp_{num}')
+                    comp.z = level_depth[level]
 
 
 def update_ek(proto, cell_spec):
@@ -258,17 +263,13 @@ def update_ek(proto, cell_spec):
 def update_tau_ca(proto, cell_spec):
     """Update tau for Ca pool from cell spec"""
     tau_dict = cell_spec['tauCa']
-    tau_all = tau_dict.pop('all')
+    tau_all = tau_dict.get('all')
     for ca_pool in moose.wildcardFind(f'{proto.path}/##[ISA=CaConc]'):
         ca_pool.tau = tau_all
-        print(proto.name, 'Set tau Ca for all comp to', ca_pool.tau)
     for comp, tau in tau_dict.items():
-        ca_pool = moose.element(f'{proto.path}/{comp}/CaPool')
-        ca_pool.tau = tau
-        print(f'{proto.name}: Set tau Ca for {comp} to {ca_pool.tau}')
-    
-    # to keep the cell_spec unaltered, put back the popped entry
-    tau_dict['all'] = tau_all
+        if comp != 'all':
+            ca_pool = moose.element(f'{proto.path}/{comp}/CaPool')
+            ca_pool.tau = tau
 
 
 def update_ar(cell, cell_spec):
@@ -278,7 +279,7 @@ def update_ar(cell, cell_spec):
         ar_chans = moose.wildcardFind(f'{cell.path}/##[FIELD(name)=AR]')
         for ch in ar_chans:
             ch.X = cell_spec['X_AR']
-    
+
 
 def get_cell(name, spec, parent='/library', protodir='proto'):
     """Returns a prototype cell with name `name` under `parent`,
@@ -307,6 +308,10 @@ def init_cells():
     logger.debug(f'Created {len(cells)} prototype neurons in {tend - tstart} s')
     return cells
 
+
+# Keep a global mapping from compartment name to level for each cell
+# type
+level_map = defaultdict(dict)
 
 if __name__ == '__main__':
     init_cells()
