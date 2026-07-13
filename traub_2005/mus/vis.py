@@ -409,7 +409,8 @@ def display_activity(
         hue, sat = base_hs[celltype]
         return colorsys.hsv_to_rgb(hue, sat, bright)
 
-    plotter = pv.Plotter(shape=(1, 2))
+    # Left (glyphs) gets 2/3 of the width, right (traces) 1/3
+    plotter = pv.Plotter(shape=(1, 2), col_weights=[2, 1])
 
     # ---- Left panel: 3D glyphs, hue per type and brightness by Vm ----
     plotter.subplot(0, 0)
@@ -457,16 +458,19 @@ def display_activity(
     # order most-superficial (smallest depth) first, so it sits on top
     ordered = sorted(reps.items(), key=lambda kv: celltype_attr[kv[0]]['top'])
     n = len(ordered)
-    slot = 0.98 / n
+    # Pack the axes tightly: reserve a little room at the bottom for the
+    # shared time-axis labels, then fill each row with almost no gap.
+    bottom = 0.05
+    slot = (0.99 - bottom) / n
     times = []
     traces = {}
     lines = {}
     charts = []
     for i, (celltype, cell_name) in enumerate(ordered):
         chart = pv.Chart2D()
-        chart.size = (0.94, slot * 0.86)
+        chart.size = (0.96, slot * 0.96)
         # i == 0 is the most superficial layer -> highest on screen
-        chart.loc = (0.02, 0.01 + (n - 1 - i) * slot)
+        chart.loc = (0.02, bottom + (n - 1 - i) * slot)
         chart.y_range = [vmin, vmax]
         chart.y_label = celltype
         chart.y_axis.tick_labels_visible = False
@@ -476,11 +480,12 @@ def display_activity(
             chart.x_axis.label = ''
         else:
             chart.x_axis.label = 'Time (s)'
-        # Make axis lines, labels and tick labels visible on the dark
-        # background; keep the type label small so 14 stacked rows do
-        # not crowd
+        # Remove grid lines and make axis lines/labels visible on the
+        # dark background; keep the type label small so 14 stacked rows
+        # do not crowd
         chart.y_axis.label_size = 12
         for axis in (chart.x_axis, chart.y_axis):
+            axis.grid = False
             axis.pen.color = 'white'
             axis.GetTitleProperties().SetColor(1, 1, 1)
             axis.GetLabelProperties().SetColor(1, 1, 1)
@@ -501,7 +506,10 @@ def display_activity(
             traces[cell_name].append(frame.get(cell_name, np.nan))
 
     def _refresh():
-        window_t = [times[-1] - window, times[-1]]
+        # Anchor the window at t=0 until it fills, so the traces start in
+        # sync with the glyphs and only then scroll right-to-left.
+        lo = max(0.0, times[-1] - window)
+        window_t = [lo, lo + window]
         for cell_name, line in lines.items():
             line.update(list(times), traces[cell_name])
         for chart in charts:
