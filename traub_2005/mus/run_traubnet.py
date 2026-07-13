@@ -45,10 +45,12 @@ def setup_data_recording(model_root, vm_frac=0.1):
             moose.connect(sg, 'spikeOut', tab, 'input')
             spike_dict[celltype][cell.name] = tab
 
-        count = int(len(nrns) * vm_frac)
+        count = int(np.ceil(len(nrns) * vm_frac))
         if count == 0:
             count = 1
-        selected = np.random.choice(nrns, size=count)
+        if count > len(nrns):
+            count = len(nrns)
+        selected = np.random.choice(nrns, size=count, replace=False)
         for cell in selected:
             tab = moose.Table(f'{Vm.path}/{cell.name}')
             moose.connect(tab, 'requestOut', moose.element(f'{cell.path}/comp_1'), 'getVm')
@@ -103,34 +105,42 @@ if __name__ == '__main__':
     runtime = 200e-3
     scale = 1.0
     outfile = 'traubnet_data.h5'
+    vm_frac = 0.1
     if len(sys.argv) > 1:
         runtime = float(sys.argv[1])
     if len(sys.argv) > 2:
         scale = float(sys.argv[2])
     if len(sys.argv) > 3:
-        outfile = sys.argv[3]
+        vm_frac = float(sys.argv[3])
+    if len(sys.argv) > 4:
+        outfile = sys.argv[4]
     model_root = cort.make_net(cort.cell_counts, cort.connection_spec, '/model', scale=scale)
-    spike_dict, Vm_dict = setup_data_recording(model_root.path, vm_frac=0.1)
+    spike_dict, Vm_dict = setup_data_recording(model_root.path, vm_frac=vm_frac)
     moose.reinit()
     ts = time.perf_counter()
     moose.start(runtime)
     te = time.perf_counter()
     print(f'Completed {runtime} s of simulation in {(te - ts)} s')
     dump_data(outfile, spike_dict, Vm_dict)
-    fig, axes = plt.subplots(nrows=2, ncols=1, sharex='all')
-    for celltype in Vm_dict:
-        for cell, Vm in Vm_dict[celltype].items():
-            v = Vm.vector
-            t = np.arange(len(v)) * Vm.dt
-            axes[0].plot(t, v)
-    cell_no = 1
-    for celltype, sd in spike_dict.items():
-        for cell, spikes in sd.items():
-            st = spikes.vector
-            if len(st) > 0:
-                axes[1].plot(st, cell_no * np.ones(len(st)), '|')
-            cell_no += 1
-    plt.show()
+    #===== START: Plotting ===============
+    ## Uncomment below to show plots of Vm and spike rasters. This can
+    ## make Python hang after the plot window is closed
+
+    # fig, axes = plt.subplots(nrows=2, ncols=1, sharex='all')
+    # for celltype in Vm_dict:
+    #     for cell, Vm in Vm_dict[celltype].items():
+    #         v = Vm.vector
+    #         t = np.arange(len(v)) * Vm.dt
+    #         axes[0].plot(t, v)
+    # cell_no = 1
+    # for celltype, sd in spike_dict.items():
+    #     for cell, spikes in sd.items():
+    #         st = spikes.vector
+    #         if len(st) > 0:
+    #             axes[1].plot(st, cell_no * np.ones(len(st)), '|')
+    #         cell_no += 1
+    # plt.show()
+    #===== END: Plotting ===============
     print('Exiting')
 
 

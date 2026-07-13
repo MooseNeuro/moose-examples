@@ -37,20 +37,20 @@ orig_cell_counts = {
 #: number of cells of each type
 #: modify this to reduce model size
 cell_counts = {
-    'SupPyrRS': 100,
-    'SupPyrFRB': 5,
-    'SupBasket': 9,
-    'SupAxoaxonic': 9,
-    'SupLTS': 9,
-    'SpinyStellate': 24,
-    'TuftedIB': 80,
-    'TuftedRS': 20,
-    'DeepBasket': 10,
-    'DeepAxoaxonic': 10,
-    'DeepLTS': 10,
-    'NontuftedRS': 50,
-    'TCR': 10,
-    'nRT': 10,
+    'SupPyrRS': 1000,
+    'SupPyrFRB': 50,
+    'SupBasket': 90,
+    'SupAxoaxonic': 90,
+    'SupLTS': 90,
+    'SpinyStellate': 240,
+    'TuftedIB': 800,
+    'TuftedRS': 200,
+    'DeepBasket': 100,
+    'DeepAxoaxonic': 100,
+    'DeepLTS': 100,
+    'NontuftedRS': 500,
+    'TCR': 100,
+    'nRT': 100,
 }
 
 # fmt: off

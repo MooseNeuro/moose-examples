@@ -28,12 +28,38 @@ from matplotlib import colormaps
 
 norm = Normalize(vmin=-100e-3, vmax=0.0)
 
+
+def make_star(outer=16, inner=6, points=5, depth=8):
+    """Return a solid `points`-pointed star glyph.
+
+    The star face lies in the x-z plane (the screen plane of the default
+    camera, which looks along -y), so it reads as a star from the front
+    rather than edge-on, and is extruded along y to give it thickness.
+    """
+    ang = np.pi / 2 + np.linspace(0, 2 * np.pi, 2 * points, endpoint=False)
+    r = np.empty(2 * points)
+    r[0::2] = outer
+    r[1::2] = inner
+    pts = np.column_stack(
+        [r * np.cos(ang), np.zeros(2 * points), r * np.sin(ang)]
+    )
+    center = len(pts)
+    pts = np.vstack([pts, [0, 0, 0]])
+    # fan the (non-convex) star from its center so it fills correctly
+    faces = np.hstack(
+        [[3, i, (i + 1) % (2 * points), center] for i in range(2 * points)]
+    )
+    flat = pv.PolyData(pts, faces=faces)
+    return flat.extrude((0, depth, 0), capping=True).triangulate()
+
+
 glyph_meshes = {
     'sphere': pv.Sphere(radius=10),
     'cone': pv.Cone(direction=(0, 0, 1), height=30, radius=20, resolution=20),
     'cylinder': pv.Cylinder(
         direction=(0, 0, 1), height=20, radius=10, resolution=20
     ),
+    'star': make_star(),
 }
 
 #: Visualization spec. For each celltype a tuple:
@@ -78,28 +104,28 @@ cell_vis_spec = {
         'top': 1000,
         'bottom': 1600,
         'dia': 650,
-        'glyph': 'sphere',
+        'glyph': 'star',
         'color': '#006ddb',
     },
     'TuftedIB': {
         'top': 1700,
         'bottom': 2000,
         'dia': 550,
-        'glyph': 'cylinder',
+        'glyph': 'cone',
         'color': '#24ff24',
     },
     'TuftedRS': {
         'top': 1700,
         'bottom': 2000,
         'dia': 550,
-        'glyph': 'cylinder',
+        'glyph': 'cone',
         'color': '#ffff6d',
     },
     'NontuftedRS': {
         'top': 2100,
         'bottom': 2500,
         'dia': 200,
-        'glyph': 'sphere',
+        'glyph': 'cone',
         'color': '#ffb6db',
     },
     'DeepBasket': {
@@ -127,7 +153,7 @@ cell_vis_spec = {
         'top': 2800,
         'bottom': 3200,
         'dia': 200,
-        'glyph': 'sphere',
+        'glyph': 'cylinder',
         'color': '#db6d00',
     },
     'nRT': {
