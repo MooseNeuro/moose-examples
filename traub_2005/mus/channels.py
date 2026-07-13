@@ -565,7 +565,15 @@ def init_channels(libpath='/library'):
             raise
 
     channels['CaPool'] = get_capool(parent=libpath)
-    channels['spike'] = moose.SpikeGen(f'{libpath}/spike')
+    spike = moose.SpikeGen(f'{libpath}/spike')
+    # Axonal spike detection: fire on 0 mV overshoot, with a refractory
+    # period so one action potential yields one output spike. Matches
+    # the original Traub 2005 FORTRAN (threshold 0, axon_refrac_time =
+    # 1.5 ms).
+    spike.threshold = 0.0
+    spike.edgeTriggered = True
+    spike.refractT = 1.5e-3
+    channels['spike'] = spike
     te = time.perf_counter()
     logger.debug(f'Finished initializing channels in {te - ts} seconds.')
     return channels

@@ -1126,9 +1126,87 @@ def connect_populations(connspec, population_dict, rng=rng):
     logger.info(f'Total time to setup connections {ttot} s')
 
 
-def make_net(cell_counts, connection_spec, model_root='/model', scale=0.1):
+#: Mean interval (s) between ectopic (spontaneous axonal) spikes for
+#: each cell type that receives them. In Traub et al., 2005 only the
+#: principal (excitatory) populations get ectopic input; interneurons
+#: are driven synaptically. The values follow
+#: `trbnetdata.ectopic_interval` from the original model: superficial
+#: pyramidal cells fire ectopics ~10x more rarely than the other
+#: principal cells. These reference rates are deliberately sparse
+#: per-cell; use `make_net(..., ectopic_rate_scale=...)` to boost them
+#: for short runs or reduced networks.
+ECTOPIC_INTERVAL = {
+    'SupPyrRS': 10.0,
+    'SupPyrFRB': 10.0,
+    'SpinyStellate': 1.0,
+    'TuftedIB': 1.0,
+    'TuftedRS': 1.0,
+    'NontuftedRS': 1.0,
+    'TCR': 1.0,
+}
+
+#: Peak conductance (S) of the ectopic input synapse. Each ectopic
+#: event opens a brief excitatory conductance on the cell's axonal
+#: compartment, large enough to evoke an ectopic action potential.
+ECTOPIC_GBAR = 2e-9
+
+
+def setup_ectopic_input(population_dict, rate_scale=1.0):
+    """Add Traub-style ectopic (spontaneous axonal) spike input.
+
+    For every cell whose type is in `ECTOPIC_INTERVAL`, a Poisson
+    `RandSpike` drives a brief excitatory synapse on the cell's axonal
+    compartment (the one carrying its SpikeGen). Each ectopic event
+    depolarizes that compartment enough to fire an ectopic action
+    potential there, which then propagates through the cell's normal
+    output connections.
+
+    `rate_scale` multiplies every ectopic rate.
+    """
+    n = 0
+    for celltype, interval in ECTOPIC_INTERVAL.items():
+        if interval <= 0 or celltype not in population_dict:
+            continue
+        rate = rate_scale / interval
+        for cell in population_dict[celltype]:
+            spikegens = moose.wildcardFind(f'{cell.path}/##[ISA=SpikeGen]')
+            if len(spikegens) != 1:
+                logger.warning(
+                    f'{cell.path} has {len(spikegens)} spikegens; '
+                    'skipping ectopic input'
+                )
+                continue
+            axon = moose.element(spikegens[0].parent.path)
+            randspike = moose.RandSpike(f'{cell.path}/ectopic')
+            randspike.rate = rate
+            synchan = moose.SynChan(f'{axon.path}/ectopic_syn')
+            synchan.Ek = E_GLU
+            synchan.tau1, synchan.tau2 = SYN_TAU['exc']
+            synchan.Gbar = ECTOPIC_GBAR
+            moose.connect(axon, 'channel', synchan, 'channel')
+            synhandler = moose.SimpleSynHandler(f'{synchan.path}/synh')
+            moose.connect(synhandler, 'activationOut', synchan, 'activation')
+            synhandler.numSynapses += 1
+            moose.connect(
+                randspike, 'spikeOut', synhandler.synapse[0], 'addSpike'
+            )
+            n += 1
+    logger.info(f'Set up ectopic input on {n} cells')
+    return n
+
+
+def make_net(
+    cell_counts,
+    connection_spec,
+    model_root='/model',
+    scale=0.1,
+    ectopic=True,
+    ectopic_rate_scale=1.0,
+):
     populations = create_neuron_populations(cell_counts, model_root=model_root, scale=scale)
     connect_populations(connection_spec, populations)
+    if ectopic:
+        setup_ectopic_input(populations, rate_scale=ectopic_rate_scale)
     return moose.element(model_root)
 
 
